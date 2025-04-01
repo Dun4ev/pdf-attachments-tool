@@ -152,7 +152,7 @@ status_label.pack(fill='x', padx=20, pady=(5, 15))
 status_var.set("Готов к работе")
 
 def open_github(event=None):
-    webbrowser.open_new("https://github.com/ТВОЙ_АДРЕС")
+    webbrowser.open_new("https://github.com/jackal100500/pdf-attachments-tool")
 
 link_label = tk.Label(
     root,
