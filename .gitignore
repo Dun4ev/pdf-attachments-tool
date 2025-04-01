@@ -1,0 +1,35 @@
+# === Python bytecode ===
+__pycache__/
+*.py[cod]
+*$py.class
+
+# === Виртуальная среда ===
+venv/
+env/
+.venv/
+ENV/
+
+# === VS Code ===
+.vscode/
+
+# === PyInstaller ===
+*.spec
+dist/
+build/
+*.exe
+
+# === Mac OS / Windows системные файлы ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Временные и лог-файлы ===
+*.log
+*.bak
+*.tmp
+
+# === Секреты и конфигурации ===
+.env
+
+# === Папка для тестов ===
+Test/
