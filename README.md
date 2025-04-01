@@ -10,7 +10,7 @@
 - Минималистичный интерфейс в стиле Headspace
 - Кнопка сброса всех настроек
 
-## Скриншот
+## Скриншот (pdf_attachments_ui.py)
 
 ![screenshot](screenshot.png)
 
