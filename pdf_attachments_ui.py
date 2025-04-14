@@ -9,6 +9,7 @@ import platform
 import webbrowser
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from docx2pdf import convert  # <--- добавьте эту строку
 
 # === СТИЛИ ===
 BG_COLOR = "#f8f8fa"
@@ -107,9 +108,63 @@ def reset_fields():
         entries[i].insert(0, default_text)
         file_paths[i] = None
         file_labels[i].config(text="Файл не выбран")
+    word_entry.delete(0, tk.END)  # Добавлено
+    word_entry.insert(0, "Выписка / Извод")  # Добавлено
+    word_file_path[0] = None  # Добавлено
+    word_file_label.config(text="Файл не выбран")  # Добавлено
     status_var.set("🔄 Поля сброшены по умолчанию.")
 
+# === Word → PDF ===
+word_file_path = [None]
+
+def select_word_file():
+    path = filedialog.askopenfilename(filetypes=[("Word files", "*.docx")])
+    if path:
+        word_file_path[0] = path
+        word_file_label.config(text=os.path.basename(path))
+
+def convert_word_to_pdf():
+    if not word_file_path[0]:
+        messagebox.showwarning("Внимание", "Сначала выберите Word-файл.")
+        return
+    out_pdf = os.path.splitext(word_file_path[0])[0] + ".pdf"
+    try:
+        convert(word_file_path[0], out_pdf)
+        # Проверяем, был ли создан PDF файл
+        if os.path.exists(out_pdf):
+            messagebox.showinfo("Успех", f"PDF создан: {os.path.basename(out_pdf)}")
+            status_var.set(f"✅ PDF создан: {os.path.basename(out_pdf)}")
+        else:
+            messagebox.showerror("Ошибка", "PDF не был создан")
+            status_var.set("❌ Ошибка: PDF не был создан")
+    except Exception as e:
+        # Если ошибка связана с Word.Application.Quit, но PDF создан
+        if "Word.Application.Quit" in str(e) and os.path.exists(out_pdf):
+            messagebox.showinfo("Успех", f"PDF создан: {os.path.basename(out_pdf)}")
+            status_var.set(f"✅ PDF создан: {os.path.basename(out_pdf)}")
+        else:
+            messagebox.showerror("Ошибка", f"Ошибка при конвертации:\n{e}")
+            status_var.set("❌ Ошибка при конвертации")
+
 # === UI ===
+# --- Блок для Word-файла ---
+word_frame = tk.Frame(root, bg=BG_COLOR)
+word_frame.pack(padx=20, pady=(15, 6), fill='x')
+
+word_entry = tk.Entry(word_frame, width=35, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
+word_entry.insert(0, "Выписка / Извод")  # значение по умолчанию
+word_entry.pack(side='left', padx=(0, 10))
+
+word_btn = tk.Button(word_frame, text="📄 Выбрать Word (.docx)", command=select_word_file, bg=BTN_COLOR, relief="flat")
+word_btn.pack(side='left', padx=(0, 10))
+
+word_file_label = tk.Label(word_frame, text="Файл не выбран", width=30, anchor='w', bg=BG_COLOR, fg="#555")
+word_file_label.pack(side='left', padx=(0, 10))
+
+word_convert_btn = tk.Button(word_frame, text="➡️ Создать PDF", command=convert_word_to_pdf, bg=BTN_COLOR, relief="flat")
+word_convert_btn.pack(side='left')
+
+# --- Блок для PDF-файлов ---
 for i in range(4):
     frame = tk.Frame(root, bg=BG_COLOR)
     frame.pack(padx=20, pady=6, fill='x')
@@ -122,6 +177,10 @@ for i in range(4):
     label = tk.Label(frame, text="Файл не выбран", width=30, anchor='w', bg=BG_COLOR, fg="#555")
     label.pack(side='left')
     file_labels.append(label)
+
+# Добавьте разделительную линию между блоками
+separator = tk.Frame(root, height=2, bg="#e0e0e0")
+separator.pack(fill='x', padx=20, pady=(10, 5))
 
 actions_frame = tk.Frame(root, bg=BG_COLOR)
 actions_frame.pack(padx=20, pady=10, fill='x')
