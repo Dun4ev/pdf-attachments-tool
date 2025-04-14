@@ -122,42 +122,126 @@ def select_word_file():
     if path:
         word_file_path[0] = path
         word_file_label.config(text=os.path.basename(path))
+        # Подставляем имя файла (без расширения) в поле
+        base = os.path.splitext(os.path.basename(path))[0]
+        word_entry.delete(0, tk.END)
+        word_entry.insert(0, base)
 
 def convert_word_to_pdf():
     if not word_file_path[0]:
         status_var.set("⚠ Сначала выберите Word-файл.")
         return
-    out_pdf = os.path.splitext(word_file_path[0])[0] + ".pdf"
+    # Получаем имя из поля, если оно не пустое, иначе из файла
+    base_name = word_entry.get().strip() or os.path.splitext(os.path.basename(word_file_path[0]))[0]
+    out_dir = os.path.dirname(word_file_path[0])
+    out_pdf = os.path.join(out_dir, f"{base_name}.pdf")
     try:
         convert(word_file_path[0], out_pdf)
-        # Проверяем, был ли создан PDF файл
         if os.path.exists(out_pdf):
             status_var.set(f"✅ PDF создан: {os.path.basename(out_pdf)}")
         else:
             status_var.set("❌ Ошибка: PDF не был создан")
     except Exception as e:
-        # Если ошибка связана с Word.Application.Quit, но PDF создан
         if "Word.Application.Quit" in str(e) and os.path.exists(out_pdf):
             status_var.set(f"✅ PDF создан: {os.path.basename(out_pdf)}")
         else:
             status_var.set(f"❌ Ошибка при конвертации: {str(e)}")
+
+def create_merged_pdf():
+    temp_files = []
+    merged_writer = PdfWriter()
+    # 1. Word → PDF (если выбран)
+    word_pdf_path = None
+    if word_file_path[0]:
+        word_pdf_path = os.path.splitext(word_file_path[0])[0] + ".pdf"
+        try:
+            convert(word_file_path[0], word_pdf_path)
+            if os.path.exists(word_pdf_path):
+                temp_files.append(word_pdf_path)
+            else:
+                status_var.set("❌ Ошибка: PDF из Word не был создан")
+                return
+        except Exception as e:
+            if "Word.Application.Quit" in str(e) and os.path.exists(word_pdf_path):
+                temp_files.append(word_pdf_path)
+            else:
+                status_var.set(f"❌ Ошибка при конвертации Word: {str(e)}")
+                return
+
+    # 2. PDF-файлы с текстом
+    pdf_temp_paths = []
+    for i, path in enumerate(file_paths):
+        if path:
+            text = entries[i].get().strip()
+            # Создаём временный файл с добавленным текстом
+            temp_pdf = os.path.join(os.path.dirname(path), f"__temp_att_{i+1}.pdf")
+            try:
+                reader = PdfReader(path)
+                writer = PdfWriter()
+                for page in reader.pages:
+                    overlay = create_overlay(text, float(page.mediabox.width), float(page.mediabox.height))
+                    page.merge_page(overlay)
+                    writer.add_page(page)
+                with open(temp_pdf, "wb") as f:
+                    writer.write(f)
+                pdf_temp_paths.append(temp_pdf)
+            except Exception as e:
+                status_var.set(f"❌ Ошибка при обработке PDF: {os.path.basename(path)}\n{e}")
+                # Удаляем временные файлы
+                for f in pdf_temp_paths:
+                    if os.path.exists(f):
+                        os.remove(f)
+                return
+    temp_files.extend(pdf_temp_paths)
+
+    if not temp_files:
+        status_var.set("⚠ Не выбран ни один файл для объединения.")
+        return
+
+    # 3. Объединяем все PDF
+    try:
+        for pdf_path in temp_files:
+            reader = PdfReader(pdf_path)
+            for page in reader.pages:
+                merged_writer.add_page(page)
+        # Получаем имя из поля word_entry, если оно не пустое, иначе "merged"
+        base_name = word_entry.get().strip() or "merged"
+        merged_path = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF files", "*.pdf")],
+            initialfile=f"{base_name}_All.pdf",
+            title="Сохранить объединённый PDF"
+        )
+        if merged_path:
+            with open(merged_path, "wb") as f:
+                merged_writer.write(f)
+            status_var.set(f"✅ Общий PDF создан: {os.path.basename(merged_path)}")
+        else:
+            status_var.set("Операция отменена.")
+    except Exception as e:
+        status_var.set(f"❌ Ошибка при объединении: {str(e)}")
+    finally:
+        # Удаляем временные файлы
+        for f in pdf_temp_paths:
+            if os.path.exists(f):
+                os.remove(f)
 
 # === UI ===
 # --- Блок для Word-файла ---
 word_frame = tk.Frame(root, bg=BG_COLOR)
 word_frame.pack(padx=20, pady=(15, 6), fill='x')
 
-word_entry = tk.Entry(word_frame, width=35, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
-word_entry.insert(0, "Выписка / Извод")  # значение по умолчанию
+word_entry = tk.Entry(word_frame, width=40, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
+word_entry.insert(0, "Izvetaj_Отчет")  # значение по умолчанию
 word_entry.pack(side='left', padx=(0, 10))
 
 word_btn = tk.Button(word_frame, text="📄 Выбрать Word (.docx)", command=select_word_file, bg=BTN_COLOR, relief="flat")
 word_btn.pack(side='left', padx=(0, 10))
 
-word_file_label = tk.Label(word_frame, text="Файл не выбран", width=30, anchor='w', bg=BG_COLOR, fg="#555")
+word_file_label = tk.Label(word_frame, text="Файл не выбран", width=30, anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
 word_file_label.pack(side='left', padx=(0, 10))
 
-word_convert_btn = tk.Button(word_frame, text="➡️ Создать PDF", command=convert_word_to_pdf, bg=BTN_COLOR, relief="flat")
+word_convert_btn = tk.Button(word_frame, text="➡️ Создать PDF из word", command=convert_word_to_pdf, bg=BTN_COLOR, relief="flat")
 word_convert_btn.pack(side='left')
 
 # --- Блок для PDF-файлов ---
@@ -189,6 +273,7 @@ btn_style = {"width": 30, "bg": BTN_COLOR, "activebackground": "#d5d5d5", "relie
 tk.Button(btn_frame, text="🔄 Вернуть по умолчанию", command=reset_fields, **btn_style).pack(pady=3)
 tk.Button(btn_frame, text="💾 Сохранить в тот же файл", command=lambda: process_pdfs(False), **btn_style).pack(pady=3)
 tk.Button(btn_frame, text="📝 Сохранить с переименованием", command=lambda: process_pdfs(True), **btn_style).pack(pady=3)
+tk.Button(btn_frame, text="📚 Создать общий PDF", command=create_merged_pdf, **btn_style).pack(pady=3)
 
 info_text = (
     "📌 Пояснения:\n"
