@@ -125,26 +125,22 @@ def select_word_file():
 
 def convert_word_to_pdf():
     if not word_file_path[0]:
-        messagebox.showwarning("Внимание", "Сначала выберите Word-файл.")
+        status_var.set("⚠ Сначала выберите Word-файл.")
         return
     out_pdf = os.path.splitext(word_file_path[0])[0] + ".pdf"
     try:
         convert(word_file_path[0], out_pdf)
         # Проверяем, был ли создан PDF файл
         if os.path.exists(out_pdf):
-            messagebox.showinfo("Успех", f"PDF создан: {os.path.basename(out_pdf)}")
             status_var.set(f"✅ PDF создан: {os.path.basename(out_pdf)}")
         else:
-            messagebox.showerror("Ошибка", "PDF не был создан")
             status_var.set("❌ Ошибка: PDF не был создан")
     except Exception as e:
         # Если ошибка связана с Word.Application.Quit, но PDF создан
         if "Word.Application.Quit" in str(e) and os.path.exists(out_pdf):
-            messagebox.showinfo("Успех", f"PDF создан: {os.path.basename(out_pdf)}")
             status_var.set(f"✅ PDF создан: {os.path.basename(out_pdf)}")
         else:
-            messagebox.showerror("Ошибка", f"Ошибка при конвертации:\n{e}")
-            status_var.set("❌ Ошибка при конвертации")
+            status_var.set(f"❌ Ошибка при конвертации: {str(e)}")
 
 # === UI ===
 # --- Блок для Word-файла ---
