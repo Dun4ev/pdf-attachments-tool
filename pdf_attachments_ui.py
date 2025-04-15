@@ -23,6 +23,9 @@ root.title("PDF Приложения")
 root.configure(bg=BG_COLOR)
 root.option_add("*Font", FONT)
 
+root.geometry("1000x450")  # Установка фиксированного размера окна (ширина x высота)
+root.resizable(False, False)  # Запрет изменения размера окна (по ширине, по высоте)
+
 entries = []
 file_labels = []
 file_paths = [None]*4
@@ -109,7 +112,7 @@ def reset_fields():
         file_paths[i] = None
         file_labels[i].config(text="Файл не выбран")
     word_entry.delete(0, tk.END)  # Добавлено
-    word_entry.insert(0, "Выписка / Извод")  # Добавлено
+    word_entry.insert(0, "Izvetaj_Отчет")  # Добавлено
     word_file_path[0] = None  # Добавлено
     word_file_label.config(text="Файл не выбран")  # Добавлено
     status_var.set("🔄 Поля сброшены по умолчанию.")
@@ -241,12 +244,56 @@ word_btn.pack(side='left', padx=(0, 10))
 word_file_label = tk.Label(word_frame, text="Файл не выбран", width=30, anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
 word_file_label.pack(side='left', padx=(0, 10))
 
-word_convert_btn = tk.Button(word_frame, text="➡️ Создать PDF из word", command=convert_word_to_pdf, bg=BTN_COLOR, relief="flat")
-word_convert_btn.pack(side='left')
+# Создаем фрейм для кнопки конвертации справа
+convert_btn_frame = tk.Frame(word_frame, bg=BG_COLOR)
+convert_btn_frame.pack(side='right', padx=20)
+
+word_convert_btn = tk.Button(convert_btn_frame, text="➡️ Создать PDF из word", 
+                          command=convert_word_to_pdf, bg=BTN_COLOR, relief="flat",
+                          width=30)  # добавляем фиксированную ширину
+word_convert_btn.pack(pady=3)
+
+# После блока word_convert_btn добавьте:
+
+# Добавить определение actions_frame перед использованием
+actions_frame = tk.Frame(root, bg=BG_COLOR)
+actions_frame.pack(padx=20, pady=5, fill='x')
+
+# Разделительная линия
+separator = tk.Frame(root, height=2, bg="#e0e0e0")
+separator.pack(fill='x', padx=20, pady=(5, 10))
 
 # --- Блок для PDF-файлов ---
+apps_frame = tk.LabelFrame(root, text="Приложения", bg=BG_COLOR, fg="#222", font=("Segoe UI", 10, "bold"))
+apps_frame.pack(padx=20, pady=(0, 6), fill='x')
+
+# Создаем фрейм для кнопок сохранения справа
+save_btn_frame = tk.Frame(apps_frame, bg=BG_COLOR)
+save_btn_frame.pack(side='right', padx=10, pady=6)
+
+# Кнопки сохранения
+btn_style = {"width": 30, "bg": BTN_COLOR, "activebackground": "#d5d5d5", "relief": "flat"}
+tk.Button(save_btn_frame, text="💾 Сохранить в тот же файл PDF", 
+         command=lambda: process_pdfs(False), **btn_style).pack(pady=3)
+tk.Button(save_btn_frame, text="📝 Сохранить с переименованием", 
+         command=lambda: process_pdfs(True), **btn_style).pack(pady=3)
+
+# Добавляем примечание под кнопками
+note_text = (
+    "💾 Сохранить в тот же файл PDF – заменяет оригинал PDF.\n"
+    "📝 Сохранить с переименованием – создаёт копию pdf с 'att.X_...'\n"
+    "\n"
+    "Текст в приложении будет добавлен в правом верхнем углу по\n" 
+    "короткой стороне страницы.\n"
+    "Каждое прилжение сохранится отдельно.\n" 
+)
+note_label = tk.Label(save_btn_frame, text=note_text, justify='left', 
+                     bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
+note_label.pack(pady=(5, 0))
+
+# Фрейм для полей ввода и выбора файлов
 for i in range(4):
-    frame = tk.Frame(root, bg=BG_COLOR)
+    frame = tk.Frame(apps_frame, bg=BG_COLOR)
     frame.pack(padx=20, pady=6, fill='x')
     entry = tk.Entry(frame, width=35, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
     entry.insert(0, f"Prilog 6.0{i+1} / Приложение 6.0{i+1}")
@@ -258,33 +305,35 @@ for i in range(4):
     label.pack(side='left')
     file_labels.append(label)
 
-# Добавьте разделительную линию между блоками
+# Разделительная линия
 separator = tk.Frame(root, height=2, bg="#e0e0e0")
 separator.pack(fill='x', padx=20, pady=(10, 5))
 
-actions_frame = tk.Frame(root, bg=BG_COLOR)
-actions_frame.pack(padx=20, pady=10, fill='x')
+# Нижние кнопки
+bottom_btn_frame = tk.Frame(root, bg=BG_COLOR)
+bottom_btn_frame.pack(padx=20, pady=10, fill='x')
 
-btn_frame = tk.Frame(actions_frame, bg=BG_COLOR)
-btn_frame.pack(side='left', padx=(0, 20))
+bottom_btn_style = {"bg": BTN_COLOR, "activebackground": "#d5d5d5", "relief": "flat", "width": 30}
 
-# Кнопки
-btn_style = {"width": 30, "bg": BTN_COLOR, "activebackground": "#d5d5d5", "relief": "flat"}
-tk.Button(btn_frame, text="🔄 Вернуть по умолчанию", command=reset_fields, **btn_style).pack(pady=3)
-tk.Button(btn_frame, text="💾 Сохранить в тот же файл", command=lambda: process_pdfs(False), **btn_style).pack(pady=3)
-tk.Button(btn_frame, text="📝 Сохранить с переименованием", command=lambda: process_pdfs(True), **btn_style).pack(pady=3)
-tk.Button(btn_frame, text="📚 Создать общий PDF", command=create_merged_pdf, **btn_style).pack(pady=3)
+# Создаем вертикальный фрейм для кнопок
+buttons_frame = tk.Frame(bottom_btn_frame, bg=BG_COLOR)
+buttons_frame.pack(side='left', padx=5)
 
+# Размещаем кнопки вертикально
+tk.Button(buttons_frame, text="🔄 Сброс/Вернуть по умолчанию", 
+         command=reset_fields, **bottom_btn_style).pack(pady=(0,5))
+tk.Button(buttons_frame, text="📚 Создать общий PDF", 
+         command=create_merged_pdf, **bottom_btn_style).pack()
+
+# Добавляем info_text после кнопок
 info_text = (
     "📌 Пояснения:\n"
-    "🔄 Вернуть по умолчанию – сбрасывает названия и очищает файлы.\n"
-    "💾 Сохранить в тот же файл – заменяет оригинал PDF.\n"
-    "📝 Сохранить с переименованием – создаёт копию pdf с 'att.X_...'.\n"
-    "Текст будет добавлен в правом верхнем углу по\n" 
-    "короткой стороне.\n"
+    "🔄 Вернуть по умолчанию – сбрасывает названия и очищает отмеченные файлы.\n"
+    "📚 Создать общий PDF – создает общий PDF из word файла и Приложений.\n"
 )
-info_label = tk.Label(actions_frame, text=info_text, justify='left', anchor='nw', bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
-info_label.pack(side='left', anchor='n')
+info_label = tk.Label(bottom_btn_frame, text=info_text, justify='left', anchor='nw', 
+                     bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
+info_label.pack(side='left', anchor='n', padx=(20, 0))
 
 status_var = tk.StringVar()
 status_label = tk.Label(root, textvariable=status_var, fg="green", anchor='w', relief="sunken", bd=1, bg="#f1f1f1", padx=5)
