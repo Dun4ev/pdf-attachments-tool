@@ -96,7 +96,7 @@ def process_pdfs(save_as_new):
                 messagebox.showerror("Ошибка", f"Ошибка при обработке {path}:\n{e}")
                 status_var.set(f"❌ Ошибка при обработке: {os.path.basename(path)}")
     if not any_error:
-        status_var.set("✅ PDF-файлы успешно обработаны.")
+        status_var.set("✅ PDF-файлы Приложения успешно обработаны.")
 
 def select_file(index):
     path = filedialog.askopenfilename(filetypes=[("PDF files", "*.pdf")])
@@ -232,26 +232,32 @@ def create_merged_pdf():
 # === UI ===
 # --- Блок для Word-файла ---
 word_frame = tk.Frame(root, bg=BG_COLOR)
-word_frame.pack(padx=20, pady=(15, 6), fill='x')
+word_frame.pack(padx=20, pady=(15, 0), fill='x')
 
-word_entry = tk.Entry(word_frame, width=40, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
+# Создаем вложенный фрейм для верхней строки
+top_row = tk.Frame(word_frame, bg=BG_COLOR)
+top_row.pack(fill='x')
+
+word_entry = tk.Entry(top_row, width=40, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
 word_entry.insert(0, "Izvetaj_Отчет")  # значение по умолчанию
 word_entry.pack(side='left', padx=(0, 10))
 
-word_btn = tk.Button(word_frame, text="📄 Выбрать Word (.docx)", command=select_word_file, bg=BTN_COLOR, relief="flat")
+word_btn = tk.Button(top_row, text="📄 Выбрать Word (.docx)", command=select_word_file, bg=BTN_COLOR, relief="flat")
 word_btn.pack(side='left', padx=(0, 10))
 
-word_file_label = tk.Label(word_frame, text="Файл не выбран", width=30, anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
-word_file_label.pack(side='left', padx=(0, 10))
-
-# Создаем фрейм для кнопки конвертации справа
-convert_btn_frame = tk.Frame(word_frame, bg=BG_COLOR)
-convert_btn_frame.pack(side='right', padx=20)
-
-word_convert_btn = tk.Button(convert_btn_frame, text="➡️ Создать PDF из word", 
+word_convert_btn = tk.Button(top_row, text="➡️ Создать PDF из word", 
                           command=convert_word_to_pdf, bg=BTN_COLOR, relief="flat",
-                          width=30)  # добавляем фиксированную ширину
-word_convert_btn.pack(pady=3)
+                          width=30)
+word_convert_btn.pack(side='right', padx=20)
+
+# Добавляем текст-подсказку под кнопкой
+word_convert_note = tk.Label(word_frame, text="Создает PDF только из docx файла без приложений", 
+                           anchor='e', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
+word_convert_note.pack(side='right', padx=20, pady=(1, 0))
+
+# Создаем отдельную строку для метки файла
+word_file_label = tk.Label(word_frame, text="Файл не выбран", anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
+word_file_label.pack(fill='x', padx=(0, 10), pady=(1, 0))
 
 # После блока word_convert_btn добавьте:
 
