@@ -30,6 +30,9 @@ entries = []
 file_labels = []
 file_paths = [None]*4
 
+# Добавить в начало файла после других глобальных переменных
+last_merged_pdf_path = [None]
+
 # === РЕГИСТРАЦИЯ ШРИФТА ===
 def register_font():
     font_name = "Arial"
@@ -115,6 +118,10 @@ def reset_fields():
     word_entry.insert(0, "Izvetaj_Отчет")  # Добавлено
     word_file_path[0] = None  # Добавлено
     word_file_label.config(text="Файл не выбран")  # Добавлено
+    # Удаляем ссылку на PDF если она существует
+    if hasattr(root, 'pdf_link_label'):
+        root.pdf_link_label.destroy()
+    
     status_var.set("🔄 Поля сброшены по умолчанию.")
 
 # === Word → PDF ===
@@ -134,19 +141,22 @@ def convert_word_to_pdf():
     if not word_file_path[0]:
         status_var.set("⚠ Сначала выберите Word-файл.")
         return
-    # Получаем имя из поля, если оно не пустое, иначе из файла
+    
     base_name = word_entry.get().strip() or os.path.splitext(os.path.basename(word_file_path[0]))[0]
     out_dir = os.path.dirname(word_file_path[0])
     out_pdf = os.path.join(out_dir, f"{base_name}.pdf")
+    
     try:
         convert(word_file_path[0], out_pdf)
         if os.path.exists(out_pdf):
             status_var.set(f"✅ PDF создан: {os.path.basename(out_pdf)}")
+            create_pdf_link(out_pdf)  # Добавляем создание ссылки
         else:
             status_var.set("❌ Ошибка: PDF не был создан")
     except Exception as e:
         if "Word.Application.Quit" in str(e) and os.path.exists(out_pdf):
             status_var.set(f"✅ PDF создан: {os.path.basename(out_pdf)}")
+            create_pdf_link(out_pdf)  # Добавляем создание ссылки и здесь
         else:
             status_var.set(f"❌ Ошибка при конвертации: {str(e)}")
 
@@ -218,7 +228,9 @@ def create_merged_pdf():
         if merged_path:
             with open(merged_path, "wb") as f:
                 merged_writer.write(f)
+            last_merged_pdf_path[0] = merged_path  # Сохраняем путь
             status_var.set(f"✅ Общий PDF создан: {os.path.basename(merged_path)}")
+            create_pdf_link(merged_path)  # Создаем ссылку
         else:
             status_var.set("Операция отменена.")
     except Exception as e:
@@ -228,6 +240,29 @@ def create_merged_pdf():
         for f in pdf_temp_paths:
             if os.path.exists(f):
                 os.remove(f)
+
+def create_pdf_link(pdf_path):
+    """Создает кликабельную ссылку на созданный PDF"""
+    # Удаляем старую ссылку если она существует
+    if hasattr(root, 'pdf_link_label'):
+        root.pdf_link_label.destroy()
+    
+    def open_pdf():
+        os.startfile(pdf_path)
+    
+    # Создаем новую ссылку
+    filename = os.path.basename(pdf_path)
+    root.pdf_link_label = tk.Label(
+        root,
+        text=f"📎 Открыть {filename}",
+        fg="#0066cc",
+        cursor="hand2",
+        bg=BG_COLOR,
+        font=("Segoe UI", 9, "underline")
+    )
+    root.pdf_link_label.bind("<Button-1>", lambda e: open_pdf())
+    # Размещаем ссылку над статусной строкой
+    root.pdf_link_label.pack(before=status_label, pady=(0, 5))
 
 # === UI ===
 # --- Блок для Word-файла ---
@@ -251,7 +286,7 @@ word_convert_btn = tk.Button(top_row, text="➡️ Создать PDF из word"
 word_convert_btn.pack(side='right', padx=20)
 
 # Добавляем текст-подсказку под кнопкой
-word_convert_note = tk.Label(word_frame, text="Создает PDF только из docx файла без приложений", 
+word_convert_note = tk.Label(word_frame, text="Создает PDF из docx файла без приложений", 
                            anchor='e', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
 word_convert_note.pack(side='right', padx=20, pady=(1, 0))
 
@@ -289,9 +324,9 @@ note_text = (
     "💾 Сохранить в тот же файл PDF – заменяет оригинал PDF.\n"
     "📝 Сохранить с переименованием – создаёт копию pdf с 'att.X_...'\n"
     "\n"
-    "Текст в приложении будет добавлен в правом верхнем углу по\n" 
-    "короткой стороне страницы.\n"
-    "Каждое прилжение сохранится отдельно.\n" 
+    "Текст ""(Prilog 6.0i / Приложение 6.0i)"" в PDF файле\n" 
+    "будет добавлен в правом верхнем углу покороткой стороне страницы.\n"
+    "Каждое прилжение сохранится отдельно.\n"
 )
 note_label = tk.Label(save_btn_frame, text=note_text, justify='left', 
                      bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
@@ -328,12 +363,18 @@ buttons_frame.pack(side='left', padx=5)
 # Размещаем кнопки вертикально
 tk.Button(buttons_frame, text="🔄 Сброс/Вернуть по умолчанию", 
          command=reset_fields, **bottom_btn_style).pack(pady=(0,5))
-tk.Button(buttons_frame, text="📚 Создать общий PDF", 
-         command=create_merged_pdf, **bottom_btn_style).pack()
+merge_btn = tk.Button(buttons_frame, 
+                     text="📚 Создать общий PDF",
+                     command=create_merged_pdf,
+                     width=30,           # из bottom_btn_style
+                     relief="flat",      # из bottom_btn_style
+                     bg="#4CAF50",       # новый цвет фона
+                     fg="white",         # цвет текста
+                     activebackground="#45a049")
+merge_btn.pack()
 
 # Добавляем info_text после кнопок
 info_text = (
-    "📌 Пояснения:\n"
     "🔄 Вернуть по умолчанию – сбрасывает названия и очищает отмеченные файлы.\n"
     "📚 Создать общий PDF – создает общий PDF из word файла и Приложений.\n"
 )
@@ -362,4 +403,4 @@ link_label.bind("<Button-1>", open_github)
 # 👇 размещаем в правом нижнем углу
 link_label.place(relx=1.0, rely=1.0, anchor="se", x=-20, y=-10)
 
-root.mainloop()
+root.mainloop() 
