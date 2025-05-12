@@ -14,7 +14,7 @@ ENV/
 
 # === PyInstaller ===
 *.spec
-dist/
+# dist/
 build/
 *.exe
 
