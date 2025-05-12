@@ -11,6 +11,8 @@ PDF Attachments Tool - это приложение для работы с PDF ф
 
 Программа имеет удобный графический интерфейс и поддерживает русский и английский языки в маркировке приложений.
 
+![Интерфейс программы PDF Attachments Tool](assets/screenshot.r1.png)
+
 ## Системные требования
 
 - Windows 7/8/10/11
@@ -40,7 +42,7 @@ PDF Attachments Tool - это приложение для работы с PDF ф
 ## Установка
 1. Скачайте последнюю версию программы из [релизов](https://github.com/jackal100500/pdf-attachments-tool/releases)
 2. Распакуйте архив в удобное место
-3. Запустите `PDF_Attachments.exe`
+3. Запустите `PDF_Attachments_ui.r1.exe`
 
 ## Использование
 
