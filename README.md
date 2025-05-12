@@ -108,3 +108,22 @@ pyinstaller src/build/spec/pdf_attachments_ui.spec
 - [PyPDF2](https://pypdf2.readthedocs.io/) для работы с PDF
 - [ReportLab](https://www.reportlab.com/) для создания PDF
 - [docx2pdf](https://github.com/AlJohri/docx2pdf) для конвертации Word
+
+## Техническое примечание
+Проблема с появлением консольного окна при конвертации была решена следующим способом:
+- В файле `.spec` оставлен параметр `console=True` для корректной работы конвертации
+- В код добавлен следующий фрагмент для скрытия консольного окна в Windows:
+```python
+import sys
+if sys.platform == "win32":
+    import ctypes
+    # Получаем хэндл консольного окна
+    hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+    if hwnd:
+        # 0 = SW_HIDE
+        ctypes.windll.user32.ShowWindow(hwnd, 0)
+```
+Это решение позволяет:
+- Сохранить корректную работу конвертации DOCX в PDF через Word
+- Скрыть консольное окно от пользователя при запуске
+- Оставить возможность отладки при необходимости

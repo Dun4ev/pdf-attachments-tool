@@ -11,6 +11,16 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from docx2pdf import convert  # <--- добавьте эту строку
 
+import sys
+if sys.platform == "win32":
+    import ctypes
+    # Получаем хэндл консольного окна
+    hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+    if hwnd:
+        # 0 = SW_HIDE
+        ctypes.windll.user32.ShowWindow(hwnd, 0)
+        
+        
 # === СТИЛИ ===
 BG_COLOR = "#f8f8fa"
 BTN_COLOR = "#e0e0e0"
