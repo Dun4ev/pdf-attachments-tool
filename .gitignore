@@ -4,9 +4,12 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Virtualenv
+# === Виртуальная среда ===
 venv/
-/venv/
+env/
+.venv/
+ENV/
+.env/
 
 # Build artifacts
 /dist/
@@ -18,3 +21,6 @@ pdf_attachments_ui.spec
 .idea/
 .vscode/
 *.swp
+
+# === Папка для тестов ===
+Test/
