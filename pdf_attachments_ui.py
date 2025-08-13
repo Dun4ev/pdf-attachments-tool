@@ -33,12 +33,12 @@ root.title("PDF Приложения")
 root.configure(bg=BG_COLOR)
 root.option_add("*Font", FONT)
 
-root.geometry("1000x450")  # Установка фиксированного размера окна (ширина x высота)
+# Авто-высота окна; ширину зафиксируем позже после построения UI
 root.resizable(False, False)  # Запрет изменения размера окна (по ширине, по высоте)
 
 entries = []
 file_labels = []
-file_paths = [None]*4
+file_paths = [None]*6
 
 # Добавить в начало файла после других глобальных переменных
 last_merged_pdf_path = [None]
@@ -131,7 +131,7 @@ def process_pdfs(save_as_new):
         status_var.set("⚠ Не выбрано ни одного PDF-файла.")
         return
     any_error = False
-    for i in range(4):
+    for i in range(6):
         path = file_paths[i]
         if path:
             try:
@@ -152,7 +152,7 @@ def select_file(index):
         file_labels[index].config(text=os.path.basename(path))
 
 def reset_fields():
-    for i in range(4):
+    for i in range(6):
         default_text = f"Prilog / Приложение 7.0{i+1}"
         entries[i].delete(0, tk.END)
         entries[i].insert(0, default_text)
@@ -383,7 +383,7 @@ note_label = tk.Label(save_btn_frame, text=note_text, justify='left',
 note_label.pack(pady=(5, 0))
 
 # Фрейм для полей ввода и выбора файлов
-for i in range(4):
+for i in range(6):
     frame = tk.Frame(apps_frame, bg=BG_COLOR)
     frame.pack(padx=20, pady=6, fill='x')
     entry = tk.Entry(frame, width=35, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
@@ -453,4 +453,10 @@ link_label.bind("<Button-1>", open_github)
 # 👇 размещаем в правом нижнем углу
 link_label.place(relx=1.0, rely=1.0, anchor="se", x=-20, y=-10)
 
-root.mainloop() 
+# После построения всего UI выставим авто-высоту и фиксированную ширину
+root.update_idletasks()
+desired_width = 1000
+current_req_height = root.winfo_reqheight()
+root.geometry(f"{desired_width}x{current_req_height}")
+
+root.mainloop()
