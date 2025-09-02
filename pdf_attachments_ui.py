@@ -10,6 +10,7 @@ import webbrowser
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from docx2pdf import convert  # <--- добавьте эту строку
+import shutil
 
 import sys
 if sys.platform == "win32":
@@ -177,28 +178,57 @@ def reset_fields():
         entries[i].insert(0, default_text)
         file_paths[i] = None
         file_labels[i].config(text="Файл не выбран")
-    word_entry.delete(0, tk.END)  # Добавлено
-    word_entry.insert(0, "Izvetaj_Отчет")  # Добавлено
-    word_file_path[0] = None  # Добавлено
-    word_file_label.config(text="Файл не выбран")  # Добавлено
-    # Удаляем ссылку на PDF если она существует
+    word_entry.delete(0, tk.END)
+    word_entry.insert(0, "Izveštaj_Отчет")
+    word_file_path[0] = None
+    word_file_label.config(text="Файл не выбран")
+    
+    # Добавлено для сброса поля PDF-отчета
+    pdf_report_entry.delete(0, tk.END)
+    pdf_report_entry.insert(0, "Izveštaj_Отчет")
+    pdf_report_file_path[0] = None
+    pdf_report_label.config(text="Файл не выбран")
+
     if hasattr(root, 'pdf_link_label'):
         root.pdf_link_label.destroy()
     
     status_var.set("🔄 Поля сброшены по умолчанию.")
 
-# === Word → PDF ===
+# === Word & PDF Отчеты ===
 word_file_path = [None]
+pdf_report_file_path = [None]
 
 def select_word_file():
     path = filedialog.askopenfilename(filetypes=[("Word files", "*.docx")])
     if path:
         word_file_path[0] = path
         word_file_label.config(text=os.path.basename(path))
-        # Подставляем имя файла (без расширения) в поле
         base = os.path.splitext(os.path.basename(path))[0]
         word_entry.delete(0, tk.END)
         word_entry.insert(0, base)
+        
+        # Сброс поля PDF-отчета
+        pdf_report_file_path[0] = None
+        pdf_report_label.config(text="Файл не выбран")
+        pdf_report_entry.delete(0, tk.END)
+        pdf_report_entry.insert(0, "Izveštaj_Отчет")
+
+
+def select_pdf_report_file():
+    path = filedialog.askopenfilename(filetypes=[("PDF files", "*.pdf")])
+    if path:
+        pdf_report_file_path[0] = path
+        pdf_report_label.config(text=os.path.basename(path))
+        base = os.path.splitext(os.path.basename(path))[0]
+        pdf_report_entry.delete(0, tk.END)
+        pdf_report_entry.insert(0, base)
+
+        # Сброс поля Word-отчета
+        word_file_path[0] = None
+        word_file_label.config(text="Файл не выбран")
+        word_entry.delete(0, tk.END)
+        word_entry.insert(0, "Izveštaj_Отчет")
+
 
 def convert_word_to_pdf():
     if not word_file_path[0]:
@@ -213,27 +243,49 @@ def convert_word_to_pdf():
         convert(word_file_path[0], out_pdf)
         if os.path.exists(out_pdf):
             status_var.set(f"✅ PDF создан: {os.path.basename(out_pdf)}")
-            create_pdf_link(out_pdf)  # Добавляем создание ссылки
+            create_pdf_link(out_pdf)
         else:
             status_var.set("❌ Ошибка: PDF не был создан")
     except Exception as e:
         if "Word.Application.Quit" in str(e) and os.path.exists(out_pdf):
             status_var.set(f"✅ PDF создан: {os.path.basename(out_pdf)}")
-            create_pdf_link(out_pdf)  # Добавляем создание ссылки и здесь
+            create_pdf_link(out_pdf)
         else:
             status_var.set(f"❌ Ошибка при конвертации: {str(e)}")
 
 def create_merged_pdf():
     temp_files = []
     merged_writer = PdfWriter()
-    # 1. Word → PDF (если выбран)
-    word_pdf_path = None
-    if word_file_path[0]:
-        word_pdf_path = os.path.splitext(word_file_path[0])[0] + ".pdf"
+    
+    main_report_path = None
+    base_name_for_save = "merged"
+
+    # 1. Определяем основной отчет (PDF или Word)
+    if pdf_report_file_path[0]:
+        # Используем PDF-отчет
+        main_report_path = pdf_report_file_path[0]
+        text = pdf_report_entry.get().strip()
+        base_name_for_save = text or os.path.splitext(os.path.basename(main_report_path))[0]
+        
+        # Копируем PDF-отчет во временный файл без добавления текста
+        temp_main_pdf = os.path.join(os.path.dirname(main_report_path), f"__temp_main_{os.path.basename(main_report_path)}")
         try:
-            convert(word_file_path[0], word_pdf_path)
+            shutil.copy(main_report_path, temp_main_pdf)
+            temp_files.append(temp_main_pdf)
+        except Exception as e:
+            status_var.set(f"❌ Ошибка при копировании PDF-отчета: {e}")
+            return
+
+    elif word_file_path[0]:
+        # Используем Word-отчет
+        main_report_path = word_file_path[0]
+        base_name_for_save = word_entry.get().strip() or os.path.splitext(os.path.basename(main_report_path))[0]
+        word_pdf_path = os.path.join(os.path.dirname(main_report_path), f"{base_name_for_save}.pdf")
+        
+        try:
+            convert(main_report_path, word_pdf_path)
             if os.path.exists(word_pdf_path):
-                temp_files.append(word_pdf_path)
+                temp_files.append(word_pdf_path) # Этот файл временный только для этой операции
             else:
                 status_var.set("❌ Ошибка: PDF из Word не был создан")
                 return
@@ -241,27 +293,21 @@ def create_merged_pdf():
             if "Word.Application.Quit" in str(e) and os.path.exists(word_pdf_path):
                 temp_files.append(word_pdf_path)
             else:
-                status_var.set(f"❌ Ошибка при конвертации Word: {str(e)}")
+                status_var.set(f"❌ Ошибка при конвертации Word: {e}")
                 return
 
-    # 2. PDF-файлы с текстом
+    # 2. PDF-файлы приложений с текстом
     pdf_temp_paths = []
     for i, path in enumerate(file_paths):
         if path:
             text = entries[i].get().strip()
-            # Создаём временный файл с добавленным текстом
             temp_pdf = os.path.join(os.path.dirname(path), f"__temp_att_{i+1}.pdf")
             try:
                 reader = PdfReader(path)
                 writer = PdfWriter()
                 for page in reader.pages:
                     rotation = page.get('/Rotate', 0)
-                    overlay = create_overlay(
-                        text, 
-                        float(page.mediabox.width), 
-                        float(page.mediabox.height),
-                        rotation
-                    )
+                    overlay = create_overlay(text, float(page.mediabox.width), float(page.mediabox.height), rotation)
                     page.merge_page(overlay)
                     writer.add_page(page)
                 with open(temp_pdf, "wb") as f:
@@ -269,10 +315,8 @@ def create_merged_pdf():
                 pdf_temp_paths.append(temp_pdf)
             except Exception as e:
                 status_var.set(f"❌ Ошибка при обработке PDF: {os.path.basename(path)}\n{e}")
-                # Удаляем временные файлы
-                for f in pdf_temp_paths:
-                    if os.path.exists(f):
-                        os.remove(f)
+                for f in temp_files + pdf_temp_paths: # Очистка всех временных файлов
+                    if os.path.exists(f): os.remove(f)
                 return
     temp_files.extend(pdf_temp_paths)
 
@@ -286,29 +330,29 @@ def create_merged_pdf():
             reader = PdfReader(pdf_path)
             for page in reader.pages:
                 merged_writer.add_page(page)
-        # Получаем имя из поля word_entry, если оно не пустое, иначе "merged"
-        base_name = word_entry.get().strip() or "merged"
+        
         merged_path = filedialog.asksaveasfilename(
             defaultextension=".pdf",
             filetypes=[("PDF files", "*.pdf")],
-            initialfile=f"{base_name}_All.pdf",
+            initialfile=f"{base_name_for_save}_All.pdf",
             title="Сохранить объединённый PDF"
         )
         if merged_path:
             with open(merged_path, "wb") as f:
                 merged_writer.write(f)
-            last_merged_pdf_path[0] = merged_path  # Сохраняем путь
+            last_merged_pdf_path[0] = merged_path
             status_var.set(f"✅ Общий PDF создан: {os.path.basename(merged_path)}")
-            create_pdf_link(merged_path)  # Создаем ссылку
+            create_pdf_link(merged_path)
         else:
             status_var.set("Операция отменена.")
     except Exception as e:
-        status_var.set(f"❌ Ошибка при объединении: {str(e)}")
+        status_var.set(f"❌ Ошибка при объединении: {e}")
     finally:
-        # Удаляем временные файлы
-        for f in pdf_temp_paths:
+        # 4. Удаляем все временные файлы
+        for f in temp_files:
             if os.path.exists(f):
                 os.remove(f)
+
 
 def create_pdf_link(pdf_path):
     """Создает кликабельную ссылку на созданный PDF"""
@@ -343,7 +387,7 @@ top_row = tk.Frame(word_frame, bg=BG_COLOR)
 top_row.pack(fill='x')
 
 word_entry = tk.Entry(top_row, width=40, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
-word_entry.insert(0, "Izvetaj_Отчет")  # значение по умолчанию
+word_entry.insert(0, "Izveštaj_Отчет")  # значение по умолчанию
 word_entry.pack(side='left', padx=(0, 10))
 
 word_btn = tk.Button(top_row, text="📄 Выбрать Word (.docx)", command=select_word_file, bg=BTN_COLOR, relief="flat")
@@ -362,6 +406,24 @@ word_convert_note.pack(side='right', padx=20, pady=(1, 0))
 # Создаем отдельную строку для метки файла
 word_file_label = tk.Label(word_frame, text="Файл не выбран", anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
 word_file_label.pack(fill='x', padx=(0, 10), pady=(1, 0))
+
+# --- Блок для PDF-отчета ---
+pdf_report_frame = tk.Frame(root, bg=BG_COLOR)
+pdf_report_frame.pack(padx=20, pady=(10, 0), fill='x')
+
+pdf_report_top_row = tk.Frame(pdf_report_frame, bg=BG_COLOR)
+pdf_report_top_row.pack(fill='x')
+
+pdf_report_entry = tk.Entry(pdf_report_top_row, width=40, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
+pdf_report_entry.insert(0, "Izveštaj_Отчет")
+pdf_report_entry.pack(side='left', padx=(0, 10))
+
+pdf_report_btn = tk.Button(pdf_report_top_row, text="📄 Выбрать PDF (.pdf)", command=select_pdf_report_file, bg=BTN_COLOR, relief="flat")
+pdf_report_btn.pack(side='left', padx=(0, 10))
+
+pdf_report_label = tk.Label(pdf_report_frame, text="Файл не выбран", anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
+pdf_report_label.pack(fill='x', padx=(0, 10), pady=(1, 0))
+
 
 # После блока word_convert_btn добавьте:
 
