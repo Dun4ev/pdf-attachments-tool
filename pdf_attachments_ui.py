@@ -20,7 +20,16 @@ if sys.platform == "win32":
         # 0 = SW_HIDE
         ctypes.windll.user32.ShowWindow(hwnd, 0)
         
-        
+# Helper function to find resources in PyInstaller bundle
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, "assets", relative_path)
+
 # === СТИЛИ ===
 BG_COLOR = "#f8f8fa"
 BTN_COLOR = "#e0e0e0"
@@ -30,6 +39,12 @@ FONT = ("Segoe UI", 10)
 
 root = tk.Tk()
 root.title("PDF Приложения")
+# Установка иконки
+try:
+    # Иконка теперь ищется в папке assets
+    root.iconbitmap(resource_path("icon.ico"))
+except tk.TclError:
+    print("Не удалось загрузить иконку.") # Сообщение для отладки
 root.configure(bg=BG_COLOR)
 root.option_add("*Font", FONT)
 
@@ -52,11 +67,15 @@ def register_font():
         if win_font.exists():
             font_path = str(win_font)
     if not font_path:
-        local_font = Path("DejaVuSans.ttf")
+        # Используем resource_path для поиска шрифта в бандле
+        local_font_path = resource_path("DejaVuSans.ttf")
+        local_font = Path(local_font_path)
         if local_font.exists():
             font_name = "DejaVuSans"
             font_path = str(local_font)
         else:
+            # Добавим вывод пути для отладки
+            print(f"Не найден файл шрифта по пути: {local_font_path}")
             raise FileNotFoundError("Не найден ни системный Arial, ни локальный DejaVuSans.ttf")
     if font_name not in pdfmetrics.getRegisteredFontNames():
         pdfmetrics.registerFont(TTFont(font_name, font_path))
