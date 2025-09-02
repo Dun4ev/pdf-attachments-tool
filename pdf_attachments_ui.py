@@ -13,13 +13,30 @@ from docx2pdf import convert  # <--- добавьте эту строку
 import shutil
 
 import sys
-if sys.platform == "win32":
+
+# --- НАЧАЛО БЛОКА ИСПРАВЛЕНИЯ ---
+# Перенаправление вывода для .exe, чтобы избежать ошибок с 'NoneType' has no attribute 'write'
+# Это происходит, когда библиотеки (например, docx2pdf) пытаются печатать в консоль,
+# которая отсутствует в оконном режиме (--windowed) PyInstaller.
+if getattr(sys, 'frozen', False) and sys.platform == "win32":
+    # 'frozen' - это атрибут, который PyInstaller добавляет в sys
+    
+    # Скрываем консольное окно
     import ctypes
-    # Получаем хэндл консольного окна
     hwnd = ctypes.windll.kernel32.GetConsoleWindow()
     if hwnd:
-        # 0 = SW_HIDE
         ctypes.windll.user32.ShowWindow(hwnd, 0)
+
+    # Если программа запущена без консоли, stdout/stderr будут None.
+    # Перенаправляем их в лог-файл, чтобы избежать сбоев.
+    if sys.stdout is None or sys.stderr is None:
+        exe_dir = os.path.dirname(sys.executable)
+        log_path = os.path.join(exe_dir, 'pdf_attachments_ui.log')
+        # 'a' - дозапись. buffering=1 - построчная буферизация.
+        log_file = open(log_path, 'a', encoding='utf-8', buffering=1)
+        sys.stdout = log_file
+        sys.stderr = log_file
+# --- КОНЕЦ БЛОКА ИСПРАВЛЕНИЯ ---
         
 # Helper function to find resources in PyInstaller bundle
 def resource_path(relative_path):
