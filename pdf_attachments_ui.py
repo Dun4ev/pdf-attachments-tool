@@ -13,6 +13,7 @@ from docx2pdf import convert  # <--- добавьте эту строку
 import shutil
 
 import sys
+import subprocess # Added this line
 
 # --- БЛОК ДЛЯ ОБРАБОТКИ ВЫВОДА В EXE ---
 # Этот блок перенаправляет stdout/stderr в лог-файл, когда приложение
@@ -363,27 +364,56 @@ def create_merged_pdf():
 
 
 def create_pdf_link(pdf_path):
-    """Создает кликабельную ссылку на созданный PDF"""
-    # Удаляем старую ссылку если она существует
-    if hasattr(root, 'pdf_link_label'):
-        root.pdf_link_label.destroy()
-    
+    """Создает кликабельную ссылку на созданный PDF и ссылку на папку"""
+    # Удаляем старые ссылки если они существуют
+    if hasattr(root, 'links_frame'): # Check for the new frame
+        root.links_frame.destroy()
+
+    # Create a new frame to hold both links
+    root.links_frame = tk.Frame(root, bg=BG_COLOR)
+    root.links_frame.pack(before=status_label, pady=(0, 5)) # Pack the frame above status_label
+
     def open_pdf():
         os.startfile(pdf_path)
-    
-    # Создаем новую ссылку
+
+    # Create PDF file link
     filename = os.path.basename(pdf_path)
-    root.pdf_link_label = tk.Label(
-        root,
+    pdf_link_label = tk.Label( # No longer root.pdf_link_label
+        root.links_frame, # Pack into the new frame
         text=f"📎 Открыть {filename}",
         fg="#0066cc",
         cursor="hand2",
         bg=BG_COLOR,
         font=("Segoe UI", 9, "underline")
     )
-    root.pdf_link_label.bind("<Button-1>", lambda e: open_pdf())
-    # Размещаем ссылку над статусной строкой
-    root.pdf_link_label.pack(before=status_label, pady=(0, 5))
+    pdf_link_label.bind("<Button-1>", lambda e: open_pdf())
+    pdf_link_label.pack(side='left', padx=(0, 10)) # Pack left in the new frame
+
+    # --- New: Folder link ---
+    folder_path = os.path.dirname(pdf_path)
+
+    def open_folder(event=None):
+        if folder_path and os.path.isdir(folder_path):
+            try:
+                if platform.system() == "Windows":
+                    os.startfile(folder_path)
+                elif platform.system() == "Darwin": # macOS
+                    subprocess.run(['open', folder_path])
+                else: # Linux
+                    subprocess.run(['xdg-open', folder_path])
+            except Exception as e:
+                messagebox.showwarning("Ошибка", f"Не удалось открыть папку: {e}")
+
+    folder_link_label = tk.Label(
+        root.links_frame, # Pack into the new frame
+        text="📁 Открыть папку",
+        fg="#0066cc",
+        cursor="hand2",
+        bg=BG_COLOR,
+        font=("Segoe UI", 9, "underline")
+    )
+    folder_link_label.bind("<Button-1>", open_folder)
+    folder_link_label.pack(side='right', padx=(10, 0)) # Pack right in the new frame, add padding to the left
 
 # === UI ===
 # --- Блок для Word-файла ---
