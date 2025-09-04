@@ -463,11 +463,10 @@ note_text = (
     "💾 Сохранить в тот же файл PDF – заменяет оригинал PDF.\n"
     "📝 Сохранить с переименованием – создаёт копию pdf с 'att.X_...'\n"
     "\n"
-    "Текст ""(Prilog / Приложение 7.0i)"" в PDF файле\n" 
-    "будет добавлен в правом верхнем углу покороткой стороне страницы.\n"
+    "Текст ""(Prilog / Приложение 7.0i)"" в PDF файле будет добавлен в правом верхнем углу покороткой стороне страницы.\n"
     "Каждое прилжение сохранится отдельно.\n"
 )
-note_label = tk.Label(save_btn_frame, text=note_text, justify='left', 
+note_label = tk.Label(save_btn_frame, text=note_text, justify='left', wraplength=220, 
                      bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
 note_label.pack(pady=(5, 0))
 
@@ -481,7 +480,7 @@ for i in range(6):
     entries.append(entry)
     btn = tk.Button(frame, text="📂 Выбрать PDF", command=lambda idx=i: select_file(idx), bg=BTN_COLOR, relief="flat")
     btn.pack(side='left', padx=(0, 10))
-    label = tk.Label(frame, text="Файл не выбран", width=30, anchor='w', bg=BG_COLOR, fg="#555")
+    label = tk.Label(frame, text="Файл не выбран", width=45, anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
     label.pack(side='left')
     file_labels.append(label)
 
