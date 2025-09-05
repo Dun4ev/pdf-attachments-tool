@@ -2,6 +2,7 @@ import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PyPDF2 import PdfReader, PdfWriter
+from PyPDF2 import Transformation
 from reportlab.pdfgen import canvas
 from io import BytesIO
 from pathlib import Path
@@ -137,14 +138,90 @@ def create_overlay(text, width, height, rotation=0):
     packet.seek(0)
     return PdfReader(packet).pages[0]
 
+# --- Новая логика: штамп без прозрачности, учёт CropBox/Rotate ---
+def _create_stamp_page(text: str, stamp_width: float = 200, stamp_height: float = 40):
+    """
+    Небольшая страница-штамп с текстом (Helvetica), без прозрачности.
+    Текст выравнивается по правому краю в точке (stamp_width, 0) — это якорь.
+    """
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=(stamp_width, stamp_height))
+    can.setFont("Helvetica", 12)
+    can.drawRightString(stamp_width, 0, text)
+    can.save()
+    packet.seek(0)
+    return PdfReader(packet).pages[0], stamp_width, stamp_height
+
+
+def _visible_box(page):
+    box = getattr(page, "cropbox", None) or page.mediabox
+    llx = float(box.left)
+    lly = float(box.bottom)
+    urx = float(box.right)
+    ury = float(box.top)
+    return llx, lly, urx, ury
+
+
+def _anchor_and_angle(page, margin: float = 12.0):
+    rotation = int(page.get("/Rotate", 0) or 0) % 360
+    llx, lly, urx, ury = _visible_box(page)
+    width = urx - llx
+    height = ury - lly
+    if rotation == 0:
+        ax = llx + width - margin
+        ay = lly + height - margin
+        deg = 0
+    elif rotation == 90:
+        ax = llx + margin
+        ay = lly + height - margin
+        deg = 90
+    elif rotation == 180:
+        ax = llx + margin
+        ay = lly + margin
+        deg = 180
+    elif rotation == 270:
+        ax = llx + width - margin
+        ay = lly + margin
+        deg = 270
+    else:
+        ax = llx + width - margin
+        ay = lly + height - margin
+        deg = rotation
+    return ax, ay, deg
+
+
+def _merge_stamp_top_right(page, text: str, margin: float = 12.0):
+    stamp, sw, _ = _create_stamp_page(text)
+    ax, ay, deg = _anchor_and_angle(page, margin)
+    import math
+    rad = math.radians(deg)
+    cos_t = math.cos(rad)
+    sin_t = math.sin(rad)
+    tx = ax - (cos_t * sw + sin_t * 0)
+    ty = ay - (-sin_t * sw + cos_t * 0)
+    transform = Transformation().rotate(deg).translate(tx, ty)
+    page.merge_transformed_page(stamp, transform)
+
 def insert_text_to_pdf(pdf_path, text, save_as_new, prefix):
     reader = PdfReader(pdf_path)
     writer = PdfWriter()
+    # Новая реализация: небольшой штамп без прозрачности, точное позиционирование
     for page in reader.pages:
+        # Ленивая загрузка вспомогательных функций, если добавлены ниже
+        try:
+            _merge_stamp_top_right
+        except NameError:
+            pass
+        else:
+            _merge_stamp_top_right(page, text, margin=12.0)
+            writer.add_page(page)
+            continue
+
+        # Fallback на старый метод (если вспомогательные функции не определены)
         rotation = page.get('/Rotate', 0)
         overlay = create_overlay(
-            text, 
-            float(page.mediabox.width), 
+            text,
+            float(page.mediabox.width),
             float(page.mediabox.height),
             rotation
         )
@@ -315,9 +392,14 @@ def create_merged_pdf():
                 reader = PdfReader(path)
                 writer = PdfWriter()
                 for page in reader.pages:
-                    rotation = page.get('/Rotate', 0)
-                    overlay = create_overlay(text, float(page.mediabox.width), float(page.mediabox.height), rotation)
-                    page.merge_page(overlay)
+                    # Используем штамп без прозрачности с учётом CropBox/Rotate
+                    try:
+                        _merge_stamp_top_right(page, text, margin=12.0)
+                    except Exception:
+                        # На всякий случай fallback на старую логику
+                        rotation = page.get('/Rotate', 0)
+                        overlay = create_overlay(text, float(page.mediabox.width), float(page.mediabox.height), rotation)
+                        page.merge_page(overlay)
                     writer.add_page(page)
                 with open(temp_pdf, "wb") as f:
                     writer.write(f)
