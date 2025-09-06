@@ -1,8 +1,8 @@
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from PyPDF2 import PdfReader, PdfWriter
-from PyPDF2 import Transformation
+from pypdf import PdfReader, PdfWriter
+from pypdf import Transformation
 from reportlab.pdfgen import canvas
 from io import BytesIO
 from pathlib import Path
@@ -173,12 +173,10 @@ def _create_stamp_page(
     bg_padding: int = 3,
 ):
     from reportlab.pdfbase.pdfmetrics import stringWidth
-    # Выбираем шрифт: используем зарегистрированный (Arial/DejaVuSans) при наличии
-    if font_name is None:
-        try:
-            font_name = FONT_USED
-        except Exception:
-            font_name = "Helvetica"
+    # --- ДИАГНОСТИКА: Принудительно используем стандартный шрифт ---
+    # Игнорируем кастомные шрифты (Arial/DejaVuSans) и используем Helvetica,
+    # чтобы проверить, является ли кастомный шрифт причиной проблемы.
+    font_name = "Helvetica"
     size = font_size
     while size >= 8:
         w = stringWidth(text, font_name, size)
@@ -190,19 +188,17 @@ def _create_stamp_page(
     can = canvas.Canvas(packet, pagesize=(stamp_width, stamp_height))
     can.setFont(font_name, size)
 
-    if draw_bg:
-        rect_w = min(stamp_width, w + 2 * bg_padding)
-        x_left = stamp_width - rect_w
-        y_bottom = 0
-        can.setFillColorRGB(1, 1, 1)
-        can.rect(x_left, y_bottom, rect_w, size + 2 * bg_padding, stroke=0, fill=1)
-    # Явно задаём «чёрный» в устройственном CMYK и режим рисования текста = fill
+    # Явно задаём «чёрный» в стандартном RGB и режим рисования "fill"
     try:
-        can.setFillColorCMYK(0, 0, 0, 1)
-    except Exception:
+        # Используем RGB - это более универсально для экранного отображения
         can.setFillColorRGB(0, 0, 0)
+    except Exception:
+        # Fallback на CMYK, если что-то пойдет не так (маловероятно)
+        can.setFillColorCMYK(0, 0, 0, 1)
     try:
-        can._code.append('0 Tr')  # text rendering mode: fill
+        # Используем официальный API для установки режима рендеринга
+        # 0 = Fill, 1 = Stroke, 2 = Fill then Stroke
+        can.setTextRenderMode(0)
     except Exception:
         pass
 
