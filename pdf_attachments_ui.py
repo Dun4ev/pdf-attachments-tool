@@ -173,10 +173,12 @@ def _create_stamp_page(
     bg_padding: int = 3,
 ):
     from reportlab.pdfbase.pdfmetrics import stringWidth
-    # --- ДИАГНОСТИКА: Принудительно используем стандартный шрифт ---
-    # Игнорируем кастомные шрифты (Arial/DejaVuSans) и используем Helvetica,
-    # чтобы проверить, является ли кастомный шрифт причиной проблемы.
-    font_name = "Helvetica"
+    # Выбираем шрифт: используем зарегистрированный (Arial/DejaVuSans) при наличии
+    if font_name is None:
+        try:
+            font_name = FONT_USED
+        except Exception:
+            font_name = "Helvetica"
     size = font_size
     while size >= 8:
         w = stringWidth(text, font_name, size)
