@@ -15,6 +15,7 @@ import shutil
 
 import sys
 import subprocess # Added this line
+import logging
 
 # --- БЛОК ДЛЯ ОБРАБОТКИ ВЫВОДА В EXE ---
 # Этот блок перенаправляет stdout/stderr в лог-файл, когда приложение
@@ -29,6 +30,15 @@ if getattr(sys, 'frozen', False) and (sys.stdout is None or sys.stderr is None):
     log_file = open(log_path, 'a', encoding='utf-8', buffering=1)
     sys.stdout = log_file
     sys.stderr = log_file
+
+# Also initialize logging for both frozen and non-frozen runs
+try:
+    _base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.abspath('.')
+    LOG_PATH = os.path.join(_base_dir, 'pdf_attachments_ui.log')
+    logging.basicConfig(filename=LOG_PATH, level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s', encoding='utf-8')
+    logging.info('Logger initialized')
+except Exception:
+    LOG_PATH = None
 # --- КОНЕЦ БЛОКА ---
         
 # Helper function to find resources in PyInstaller bundle
@@ -152,6 +162,58 @@ def _create_stamp_page(text: str, stamp_width: float = 200, stamp_height: float 
     packet.seek(0)
     return PdfReader(packet).pages[0], stamp_width, stamp_height
 
+# Redefine with advanced options (will override previous one at import time)
+def _create_stamp_page(
+    text: str,
+    stamp_width: float = 240,
+    stamp_height: float = 24,
+    font_name: str = None,
+    font_size: int = 12,
+    draw_bg: bool = True,
+    bg_padding: int = 3,
+):
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    # Выбираем шрифт: используем зарегистрированный (Arial/DejaVuSans) при наличии
+    if font_name is None:
+        try:
+            font_name = FONT_USED
+        except Exception:
+            font_name = "Helvetica"
+    size = font_size
+    while size >= 8:
+        w = stringWidth(text, font_name, size)
+        if w + 2 * bg_padding <= stamp_width:
+            break
+        size -= 1
+
+    packet = BytesIO()
+    can = canvas.Canvas(packet, pagesize=(stamp_width, stamp_height))
+    can.setFont(font_name, size)
+
+    if draw_bg:
+        rect_w = min(stamp_width, w + 2 * bg_padding)
+        x_left = stamp_width - rect_w
+        y_bottom = 0
+        can.setFillColorRGB(1, 1, 1)
+        can.rect(x_left, y_bottom, rect_w, size + 2 * bg_padding, stroke=0, fill=1)
+    # Явно задаём «чёрный» в устройственном CMYK и режим рисования текста = fill
+    try:
+        can.setFillColorCMYK(0, 0, 0, 1)
+    except Exception:
+        can.setFillColorRGB(0, 0, 0)
+    try:
+        can._code.append('0 Tr')  # text rendering mode: fill
+    except Exception:
+        pass
+
+    # Привязка к нижнему правому углу штампа -> якорь (stamp_width, 0)
+    baseline_y = bg_padding
+    can.drawRightString(stamp_width - bg_padding, baseline_y, text)
+
+    can.save()
+    packet.seek(0)
+    return PdfReader(packet).pages[0], stamp_width, stamp_height
+
 
 def _visible_box(page):
     box = getattr(page, "cropbox", None) or page.mediabox
@@ -191,16 +253,49 @@ def _anchor_and_angle(page, margin: float = 12.0):
 
 
 def _merge_stamp_top_right(page, text: str, margin: float = 12.0):
-    stamp, sw, _ = _create_stamp_page(text)
+    stamp, sw, sh = _create_stamp_page(text)
     ax, ay, deg = _anchor_and_angle(page, margin)
-    import math
-    rad = math.radians(deg)
-    cos_t = math.cos(rad)
-    sin_t = math.sin(rad)
-    tx = ax - (cos_t * sw + sin_t * 0)
-    ty = ay - (-sin_t * sw + cos_t * 0)
+    # Рассчитываем перенос так, чтобы верхний правый угол штампа совпал с (ax, ay)
+    if deg == 0:
+        tx, ty = ax - sw, ay - sh
+    elif deg == 90:
+        tx, ty = ax - sh, ay
+    elif deg == 180:
+        tx, ty = ax, ay
+    elif deg == 270:
+        tx, ty = ax, ay - sw
+    else:
+        # общая формула на всякий случай: смещение правого-нижнего — как раньше
+        import math
+        rad = math.radians(deg)
+        cos_t = math.cos(rad)
+        sin_t = math.sin(rad)
+        tx = ax - (cos_t * sw + sin_t * 0)
+        ty = ay - (-sin_t * sw + cos_t * 0)
     transform = Transformation().rotate(deg).translate(tx, ty)
-    page.merge_transformed_page(stamp, transform)
+
+    # Предпочитаем современный snake_case (верхний слой)
+    if hasattr(page, "merge_transformed_page"):
+        page.merge_transformed_page(stamp, transform)
+        return
+
+    # Fallback 1: применить трансформацию к штампу и слить
+    try:
+        stamp.add_transformation(transform)
+        page.merge_page(stamp)
+        return
+    except Exception:
+        pass
+
+    # Fallback 2: старый camelCase (на крайний случай)
+    if hasattr(page, "mergeTransformedPage"):
+        m = transform.matrix
+        ctm = (m[0][0], m[0][1], m[1][0], m[1][1], m[2][0], m[2][1])
+        page.mergeTransformedPage(stamp, ctm)
+        return
+
+    # Последний резерв: просто слить (лучше так, чем упасть)
+    page.merge_page(stamp)
 
 def insert_text_to_pdf(pdf_path, text, save_as_new, prefix):
     reader = PdfReader(pdf_path)
@@ -231,6 +326,16 @@ def insert_text_to_pdf(pdf_path, text, save_as_new, prefix):
     with open(output_path, "wb") as f:
         writer.write(f)
 
+def insert_text_to_pdf_safe(pdf_path, text, save_as_new, prefix):
+    reader = PdfReader(pdf_path)
+    writer = PdfWriter()
+    for page in reader.pages:
+        _merge_stamp_top_right(page, text, margin=12.0)
+        writer.add_page(page)
+    output_path = pdf_path if not save_as_new else os.path.join(os.path.dirname(pdf_path), f"{prefix}_{os.path.basename(pdf_path)}")
+    with open(output_path, "wb") as f:
+        writer.write(f)
+
 # === ЛОГИКА ===
 def process_pdfs(save_as_new):
     if not any(file_paths):
@@ -243,7 +348,7 @@ def process_pdfs(save_as_new):
             try:
                 text = entries[i].get().strip()
                 prefix = f"att.{i+1}"
-                insert_text_to_pdf(path, text, save_as_new, prefix)
+                insert_text_to_pdf_safe(path, text, save_as_new, prefix)
             except Exception as e:
                 any_error = True
                 messagebox.showerror("Ошибка", f"Ошибка при обработке {path}:\n{e}")
@@ -393,13 +498,7 @@ def create_merged_pdf():
                 writer = PdfWriter()
                 for page in reader.pages:
                     # Используем штамп без прозрачности с учётом CropBox/Rotate
-                    try:
-                        _merge_stamp_top_right(page, text, margin=12.0)
-                    except Exception:
-                        # На всякий случай fallback на старую логику
-                        rotation = page.get('/Rotate', 0)
-                        overlay = create_overlay(text, float(page.mediabox.width), float(page.mediabox.height), rotation)
-                        page.merge_page(overlay)
+                    _merge_stamp_top_right(page, text, margin=12.0)
                     writer.add_page(page)
                 with open(temp_pdf, "wb") as f:
                     writer.write(f)
@@ -633,8 +732,29 @@ info_label = tk.Label(bottom_btn_frame, text=info_text, justify='left', anchor='
 info_label.pack(side='left', anchor='n', padx=(20, 0))
 
 status_var = tk.StringVar()
-status_label = tk.Label(root, textvariable=status_var, fg="green", anchor='w', relief="sunken", bd=1, bg="#f1f1f1", padx=5)
+# Многострочный статус с переносом слов
+status_label = tk.Label(
+    root,
+    textvariable=status_var,
+    fg="green",
+    anchor='w',
+    justify='left',
+    wraplength=920,
+    relief="sunken",
+    bd=1,
+    bg="#f1f1f1",
+    padx=5
+)
 status_label.pack(fill='x', padx=20, pady=(5, 15))
+def show_status_details(event=None):
+    top = tk.Toplevel(root)
+    top.title("Детали сообщения")
+    top.geometry("900x400")
+    txt = tk.Text(top, wrap='word')
+    txt.insert('1.0', status_var.get())
+    txt.configure(state='disabled')
+    txt.pack(fill='both', expand=True)
+status_label.bind('<Double-Button-1>', show_status_details)
 status_var.set("Готов к работе")
 
 def open_github(event=None):
