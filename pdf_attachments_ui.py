@@ -259,51 +259,74 @@ def _anchor_and_angle(page, margin: float = 12.0):
         deg = (deg + 90) % 360
 
     if is_displayed_landscape:
-        # --- ВЕРХНИЙ ЛЕВЫЙ угол для альбомной ориентации, со сдвигом ВНИЗ ---
+        # --- ВЕРХНИЙ ЛЕВЫЙ угол для альбомной ориентации (простая логика) ---
         alignment = 'top-left'
-        
-        # Смещение на 10% от ВИЗУАЛЬНОЙ высоты страницы
-        if rotation in (0, 180):
-            visual_height = height
-        else: # 90, 270
-            visual_height = width
-        offset = visual_height * 0.39
-
-        if rotation == 0:
+        # Целимся в визуальный верхний левый угол с отступом
+        if rotation == 0:    # Визуальный ВЛ -> оригинальный ВЛ
             ax = llx + margin
-            ay = ury - margin - offset # Сдвиг вниз
-        elif rotation == 90:
-            # Визуально "вниз" - это сдвиг вправо в системе координат оригинала
-            ax = llx + margin + offset
+            ay = ury - margin
+        elif rotation == 90:   # Визуальный ВЛ -> оригинальный НЛ
+            ax = llx + margin
             ay = lly + margin
-        elif rotation == 180:
-            # Визуально "вниз" - это сдвиг вверх в системе координат оригинала
+        elif rotation == 180:  # Визуальный ВЛ -> оригинальный НП
             ax = urx - margin
-            ay = lly + margin + offset
-        else:  # 270
-            # Визуально "вниз" - это сдвиг влево в системе координат оригинала
-            ax = urx - margin - offset
+            ay = lly + margin
+        else:  # 270         # Визуальный ВЛ -> оригинальный ВП
+            ax = urx - margin
             ay = ury - margin
     else:
-        # --- ВЕРХНИЙ ПРАВЫЙ угол для книжной ориентации (без изменений) ---
-        alignment = 'top-right'
-        if rotation == 0:
-            ax = urx - margin
-            ay = ury - margin
-        elif rotation == 90:
-            ax = llx + margin
-            ay = ury - margin
-        elif rotation == 180:
-            ax = llx + margin
-            ay = lly + margin
-        else:  # 270
-            ax = urx - margin
-            ay = lly + margin
+        # --- Книжная ориентация ---
+        # Для повернутой на 270 градусов страницы, видимый верхний правый угол
+        # на самом деле является физическим нижним правым углом.
+        # Чтобы штамп не улетел, мы должны выравнивать его по его нижнему краю.
+        if rotation == 270:
+            alignment = 'bottom-right'
+            ax, ay = urx - margin, lly + margin
+        else:
+            # Стандартные случаи для книжной оритации
+            alignment = 'top-right'
+            if rotation == 0:
+                ax, ay = urx - margin, ury - margin
+            elif rotation == 90:
+                ax, ay = llx + margin, ury - margin
+            elif rotation == 180:
+                ax, ay = llx + margin, lly + margin
             
     return ax, ay, deg, alignment
 
 def _merge_stamp(page, text: str, margin: float = 12.0):
-    stamp, sw, sh = _create_stamp_page(text)
+    # --- Новая логика: Адаптивный размер штампа для маленьких страниц ---
+    
+    # 1. Исходные параметры для штампа и шрифта
+    initial_sw = 240.0
+    initial_sh = 24.0
+    initial_font_size = 11.0 # Желаемый размер шрифта
+    
+    # 2. Получаем размеры и поворот страницы
+    box = getattr(page, "cropbox", None) or page.mediabox
+    rotation = page.get('/Rotate', 0) or 0
+    # Используем ВИЗУАЛЬНУЮ ширину для проверки
+    visual_page_width = float(box.height) if rotation in (90, 270) else float(box.width)
+
+    # 3. Проверка, не слишком ли велик штамп для этой страницы
+    threshold = 0.60
+    if initial_sw > visual_page_width * threshold:
+        # 4. Да, штамп слишком большой. Вычисляем коэффициент уменьшения.
+        scale = (visual_page_width * threshold) / initial_sw
+        final_sw, final_sh, final_font_size = initial_sw * scale, initial_sh * scale, initial_font_size * scale
+    else:
+        # 5. Нет, страница достаточно большая. Используем стандартные размеры.
+        final_sw, final_sh, final_font_size = initial_sw, initial_sh, initial_font_size
+
+    # 6. Создаем штамп с финальными размерами
+    stamp, sw, sh = _create_stamp_page(
+        text,
+        stamp_width=final_sw,
+        stamp_height=final_sh,
+        font_size=int(round(final_font_size))
+    )
+
+    # 7. Вычисляем положение и поворот
     ax, ay, deg, alignment = _anchor_and_angle(page, margin)
     
     import math
@@ -311,23 +334,162 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
     cos_d = math.cos(rad)
     sin_d = math.sin(rad)
 
-    # Определяем, какой угол штампа будем выравнивать
-    if alignment == 'top-left':
-        # Верхний левый угол штампа в его координатах: (0, sh)
-        x_stamp, y_stamp = 0, sh
-    else: # 'top-right'
-        # Верхний правый угол штампа: (sw, sh)
-        x_stamp, y_stamp = sw, sh
+    # --- Новая, корректная логика вычисления трансформации ---
+    c0 = (0, 0)
+    c1 = (sw * cos_d, sw * sin_d)
+    c2 = (-sh * sin_d, sh * cos_d)
+    c3 = (sw * cos_d - sh * sin_d, sw * sin_d + sh * cos_d)
 
-    # Рассчитываем положение угла штампа после поворота
-    x_rot = x_stamp * cos_d - y_stamp * sin_d
-    y_rot = x_stamp * sin_d + y_stamp * cos_d
+    x_coords = [c0[0], c1[0], c2[0], c3[0]]
+    y_coords = [c0[1], c1[1], c2[1], c3[1]]
+    bbox_x_min, bbox_x_max = min(x_coords), max(x_coords)
+    bbox_y_min, bbox_y_max = min(y_coords), max(y_coords)
+
+    if alignment == 'top-left':
+        handle_x, handle_y = bbox_x_min, bbox_y_max
+    elif alignment == 'bottom-right':
+        handle_x, handle_y = bbox_x_max, bbox_y_min
+    else: # 'top-right'
+        handle_x, handle_y = bbox_x_max, bbox_y_max
+
+    tx = ax - handle_x
+    ty = ay - handle_y
     
-    # Вычисляем смещение, чтобы совместить повернутый угол с точкой (ax, ay)
-    tx = ax - x_rot
-    ty = ay - y_rot
+    transform = Transformation().rotate(deg).translate(tx=tx, ty=ty)
+
+def _merge_stamp(page, text: str, margin: float = 12.0):
+    # --- Новая логика: Адаптивный размер штампа для маленьких страниц ---
     
-    transform = Transformation().rotate(deg).translate(tx, ty)
+    # 1. Исходные параметры для штампа и шрифта
+    initial_sw = 240.0
+    initial_sh = 24.0
+    initial_font_size = 11.0 # Желаемый размер шрифта
+    
+    # 2. Получаем размеры страницы
+    box = getattr(page, "cropbox", None) or page.mediabox
+    # Используем ВИЗУАЛЬНУЮ ширину для проверки
+    rotation = page.get('/Rotate', 0) or 0
+    visual_page_width = float(box.height) if rotation in (90, 270) else float(box.width)
+
+    # 3. Проверка, не слишком ли велик штамп для этой страницы
+    threshold = 0.60
+    if initial_sw > visual_page_width * threshold:
+        # 4. Да, штамп слишком большой. Вычисляем коэффициент уменьшения.
+        scale = (visual_page_width * threshold) / initial_sw
+        final_sw = initial_sw * scale
+        final_sh = initial_sh * scale
+        final_font_size = initial_font_size * scale
+    else:
+        # 5. Нет, страница достаточно большая. Используем стандартные размеры.
+        final_sw, final_sh, final_font_size = initial_sw, initial_sh, initial_font_size
+
+    # 6. Создаем штамп с финальными (возможно, уменьшенными) размерами
+    stamp, sw, sh = _create_stamp_page(
+        text,
+        stamp_width=final_sw,
+        stamp_height=final_sh,
+        font_size=int(round(final_font_size))
+    )
+
+    # 7. Вычисляем положение и поворот
+    ax, ay, deg, alignment = _anchor_and_angle(page, margin)
+    
+    import math
+    rad = math.radians(deg)
+    cos_d = math.cos(rad)
+    sin_d = math.sin(rad)
+
+    # --- Новая, корректная логика вычисления трансформации ---
+    c0 = (0, 0)
+    c1 = (sw * cos_d, sw * sin_d)
+    c2 = (-sh * sin_d, sh * cos_d)
+    c3 = (sw * cos_d - sh * sin_d, sw * sin_d + sh * cos_d)
+
+    x_coords = [c0[0], c1[0], c2[0], c3[0]]
+    y_coords = [c0[1], c1[1], c2[1], c3[1]]
+    bbox_x_min, bbox_x_max = min(x_coords), max(x_coords)
+    bbox_y_min, bbox_y_max = min(y_coords), max(y_coords)
+
+    if alignment == 'top-left':
+        handle_x, handle_y = bbox_x_min, bbox_y_max
+    elif alignment == 'bottom-right': # Новый случай для поворота 270
+        handle_x, handle_y = bbox_x_max, bbox_y_min
+    else: # 'top-right'
+        handle_x, handle_y = bbox_x_max, bbox_y_max
+
+    tx = ax - handle_x
+    ty = ay - handle_y
+    
+    transform = Transformation().rotate(deg).translate(tx=tx, ty=ty)
+
+def _merge_stamp(page, text: str, margin: float = 12.0):
+    # --- Новая логика: Адаптивный размер штампа для маленьких страниц ---
+    
+    # 1. Исходные параметры для штампа и шрифта
+    initial_sw = 240.0
+    initial_sh = 24.0
+    initial_font_size = 11.0 # Желаемый размер шрифта
+    
+    # 2. Получаем размеры страницы
+    box = getattr(page, "cropbox", None) or page.mediabox
+    page_width = float(box.width)
+    
+    # 3. Проверка, не слишком ли велик штамп для этой страницы
+    # Порог: если штамп занимает > 60% ширины, он считается слишком большим
+    threshold = 0.60
+    if initial_sw > page_width * threshold:
+        # 4. Да, штамп слишком большой. Вычисляем коэффициент уменьшения.
+        scale = (page_width * threshold) / initial_sw
+        final_sw = initial_sw * scale
+        final_sh = initial_sh * scale
+        final_font_size = initial_font_size * scale
+    else:
+        # 5. Нет, страница достаточно большая. Используем стандартные размеры.
+        final_sw = initial_sw
+        final_sh = initial_sh
+        final_font_size = initial_font_size
+
+    # 6. Создаем штамп с финальными (возможно, уменьшенными) размерами
+    stamp, sw, sh = _create_stamp_page(
+        text,
+        stamp_width=final_sw,
+        stamp_height=final_sh,
+        font_size=int(round(final_font_size)) # Округляем до целого
+    )
+
+    # 7. Вычисляем положение и поворот
+    ax, ay, deg, alignment = _anchor_and_angle(page, margin)
+    
+    import math
+    rad = math.radians(deg)
+    cos_d = math.cos(rad)
+    sin_d = math.sin(rad)
+
+    # --- Новая, корректная логика вычисления трансформации ---
+    # 1. Вычисляем координаты углов штампа после поворота
+    c0 = (0, 0)
+    c1 = (sw * cos_d, sw * sin_d)
+    c2 = (-sh * sin_d, sh * cos_d)
+    c3 = (sw * cos_d - sh * sin_d, sw * sin_d + sh * cos_d)
+
+    # 2. Находим границы описанной рамки (bounding box) для повернутого штампа
+    x_coords = [c0[0], c1[0], c2[0], c3[0]]
+    y_coords = [c0[1], c1[1], c2[1], c3[1]]
+    bbox_x_min, bbox_x_max = min(x_coords), max(x_coords)
+    bbox_y_min, bbox_y_max = min(y_coords), max(y_coords)
+
+    # 3. Определяем "ручку" на этой рамке в зависимости от выравнивания
+    if alignment == 'top-left':
+        handle_x, handle_y = bbox_x_min, bbox_y_max
+    else: # 'top-right'
+        handle_x, handle_y = bbox_x_max, bbox_y_max
+
+    # 4. Вычисляем смещение, чтобы переместить "ручку" в целевую точку (ax, ay)
+    tx = ax - handle_x
+    ty = ay - handle_y
+    
+    # 5. Применяем трансформацию: сначала поворот, потом смещение
+    transform = Transformation().rotate(deg).translate(tx=tx, ty=ty)
 
     # Предпочитаем современный snake_case (верхний слой)
     if hasattr(page, "merge_transformed_page"):
