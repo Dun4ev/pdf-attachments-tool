@@ -131,7 +131,7 @@ FONT_USED = register_font()
 def create_overlay(text, width, height, rotation=0):
     packet = BytesIO()
     can = canvas.Canvas(packet, pagesize=(width, height))
-    can.setFont(FONT_USED, 12)
+    can.setFont(FONT_USED, 11)
     
     margin = 40  # Отступ от краев
     
@@ -191,7 +191,7 @@ def _create_stamp_page(
     stamp_width: float = 240,
     stamp_height: float = 24,
     font_name: str = None,
-    font_size: int = 12,
+    font_size: int = 11,
     draw_bg: bool = True,
     bg_padding: int = 3,
 ):
