@@ -250,49 +250,83 @@ def _anchor_and_angle(page, margin: float = 12.0):
     llx, lly, urx, ury = _visible_box(page)
     width = urx - llx
     height = ury - lly
-    if rotation == 0:
-        ax = llx + width - margin
-        ay = lly + height - margin
-        deg = 0
-    elif rotation == 90:
-        ax = llx + margin
-        ay = lly + height - margin
-        deg = 90
-    elif rotation == 180:
-        ax = llx + margin
-        ay = lly + margin
-        deg = 180
-    elif rotation == 270:
-        ax = llx + width - margin
-        ay = lly + margin
-        deg = 270
+
+    is_displayed_landscape = (rotation in (0, 180) and width > height) or \
+                             (rotation in (90, 270) and height > width)
+
+    deg = rotation
+    if is_displayed_landscape:
+        deg = (deg + 90) % 360
+
+    if is_displayed_landscape:
+        # --- ВЕРХНИЙ ЛЕВЫЙ угол для альбомной ориентации, со сдвигом ВНИЗ ---
+        alignment = 'top-left'
+        
+        # Смещение на 10% от ВИЗУАЛЬНОЙ высоты страницы
+        if rotation in (0, 180):
+            visual_height = height
+        else: # 90, 270
+            visual_height = width
+        offset = visual_height * 0.39
+
+        if rotation == 0:
+            ax = llx + margin
+            ay = ury - margin - offset # Сдвиг вниз
+        elif rotation == 90:
+            # Визуально "вниз" - это сдвиг вправо в системе координат оригинала
+            ax = llx + margin + offset
+            ay = lly + margin
+        elif rotation == 180:
+            # Визуально "вниз" - это сдвиг вверх в системе координат оригинала
+            ax = urx - margin
+            ay = lly + margin + offset
+        else:  # 270
+            # Визуально "вниз" - это сдвиг влево в системе координат оригинала
+            ax = urx - margin - offset
+            ay = ury - margin
     else:
-        ax = llx + width - margin
-        ay = lly + height - margin
-        deg = rotation
-    return ax, ay, deg
+        # --- ВЕРХНИЙ ПРАВЫЙ угол для книжной ориентации (без изменений) ---
+        alignment = 'top-right'
+        if rotation == 0:
+            ax = urx - margin
+            ay = ury - margin
+        elif rotation == 90:
+            ax = llx + margin
+            ay = ury - margin
+        elif rotation == 180:
+            ax = llx + margin
+            ay = lly + margin
+        else:  # 270
+            ax = urx - margin
+            ay = lly + margin
+            
+    return ax, ay, deg, alignment
 
-
-def _merge_stamp_top_right(page, text: str, margin: float = 12.0):
+def _merge_stamp(page, text: str, margin: float = 12.0):
     stamp, sw, sh = _create_stamp_page(text)
-    ax, ay, deg = _anchor_and_angle(page, margin)
-    # Рассчитываем перенос так, чтобы верхний правый угол штампа совпал с (ax, ay)
-    if deg == 0:
-        tx, ty = ax - sw, ay - sh
-    elif deg == 90:
-        tx, ty = ax - sh, ay
-    elif deg == 180:
-        tx, ty = ax, ay
-    elif deg == 270:
-        tx, ty = ax, ay - sw
-    else:
-        # общая формула на всякий случай: смещение правого-нижнего — как раньше
-        import math
-        rad = math.radians(deg)
-        cos_t = math.cos(rad)
-        sin_t = math.sin(rad)
-        tx = ax - (cos_t * sw + sin_t * 0)
-        ty = ay - (-sin_t * sw + cos_t * 0)
+    ax, ay, deg, alignment = _anchor_and_angle(page, margin)
+    
+    import math
+    rad = math.radians(deg)
+    cos_d = math.cos(rad)
+    sin_d = math.sin(rad)
+
+    # Определяем, какой угол штампа будем выравнивать
+    if alignment == 'top-left':
+        # Верхний левый угол штампа в его координатах: (0, sh)
+        x_stamp, y_stamp = 0, sh
+    else: # 'top-right'
+        # Верхний правый угол штампа: (sw, sh)
+        x_stamp, y_stamp = sw, sh
+
+    # Рассчитываем положение угла штампа после поворота
+    x_rot = x_stamp * cos_d - y_stamp * sin_d
+    y_rot = x_stamp * sin_d + y_stamp * cos_d
+    
+    # Вычисляем смещение, чтобы совместить повернутый угол с точкой (ax, ay)
+    tx = ax - x_rot
+    ty = ay - y_rot
+    
     transform = Transformation().rotate(deg).translate(tx, ty)
 
     # Предпочитаем современный snake_case (верхний слой)
@@ -329,7 +363,7 @@ def insert_text_to_pdf(pdf_path, text, save_as_new, prefix):
         except NameError:
             pass
         else:
-            _merge_stamp_top_right(page, text, margin=12.0)
+            _merge_stamp(page, text, margin=12.0)
             writer.add_page(page)
             continue
 
@@ -351,7 +385,7 @@ def insert_text_to_pdf_safe(pdf_path, text, save_as_new, prefix):
     reader = PdfReader(pdf_path)
     writer = PdfWriter()
     for page in reader.pages:
-        _merge_stamp_top_right(page, text, margin=12.0)
+        _merge_stamp(page, text, margin=12.0)
         writer.add_page(page)
     output_path = pdf_path if not save_as_new else os.path.join(os.path.dirname(pdf_path), f"{prefix}_{os.path.basename(pdf_path)}")
     with open(output_path, "wb") as f:
@@ -519,7 +553,7 @@ def create_merged_pdf():
                 writer = PdfWriter()
                 for page in reader.pages:
                     # Используем штамп без прозрачности с учётом CropBox/Rotate
-                    _merge_stamp_top_right(page, text, margin=12.0)
+                    _merge_stamp(page, text, margin=12.0)
                     writer.add_page(page)
                 with open(temp_pdf, "wb") as f:
                     writer.write(f)

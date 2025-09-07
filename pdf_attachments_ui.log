@@ -1,41 +1,35 @@
-2025-09-06 11:44:06,966 INFO Logger initialized
-2025-09-06 11:45:05,154 INFO Logger initialized
-2025-09-06 11:48:21,658 INFO Logger initialized
-2025-09-06 11:51:55,003 INFO Logger initialized
-2025-09-06 12:07:33,625 INFO Logger initialized
-2025-09-06 12:11:55,195 INFO Logger initialized
-2025-09-06 12:16:48,297 INFO Logger initialized
-2025-09-06 22:01:13,479 INFO Logger initialized
-2025-09-06 22:13:34,467 INFO Logger initialized
-2025-09-06 22:19:22,197 INFO Logger initialized
-2025-09-06 22:20:30,062 INFO Logger initialized
-2025-09-06 22:22:39,270 INFO Logger initialized
-2025-09-06 22:23:31,922 INFO Logger initialized
-2025-09-06 22:29:09,799 INFO Logger initialized
-2025-09-06 22:31:25,542 INFO Logger initialized
-2025-09-06 22:34:26,275 INFO Logger initialized
-2025-09-06 22:37:15,449 INFO Logger initialized
-2025-09-06 22:40:53,386 INFO Logger initialized
-2025-09-06 22:53:15,357 INFO Logger initialized
-2025-09-06 23:04:27,478 INFO Logger initialized
-2025-09-06 23:10:06,805 INFO Logger initialized
-2025-09-06 23:16:55,301 INFO Logger initialized
-2025-09-06 23:24:36,279 INFO Logger initialized
-2025-09-06 23:25:28,816 INFO Logger initialized
-2025-09-06 23:25:54,487 INFO Logger initialized
-2025-09-06 23:26:18,507 INFO Logger initialized
-2025-09-06 23:26:44,264 INFO Logger initialized
-2025-09-06 23:27:08,111 INFO Logger initialized
-2025-09-06 23:27:34,216 INFO Logger initialized
-2025-09-06 23:28:07,957 INFO Logger initialized
-2025-09-06 23:29:18,328 INFO Logger initialized
-2025-09-06 23:29:49,985 INFO Logger initialized
-2025-09-06 23:30:20,742 INFO Logger initialized
-2025-09-06 23:31:04,519 INFO Logger initialized
-2025-09-06 23:31:44,363 INFO Logger initialized
-2025-09-06 23:32:28,465 INFO Logger initialized
-2025-09-06 23:40:20,979 INFO Logger initialized
-2025-09-06 23:43:57,341 INFO Logger initialized
-2025-09-07 00:03:52,873 INFO Logger initialized
-2025-09-07 00:06:09,579 INFO Logger initialized
-2025-09-07 00:12:46,128 INFO Logger initialized
+2025-09-07 11:05:04,277 INFO Logger initialized
+2025-09-07 11:05:13,246 INFO stamp 'Prilog / Приложение 7.01' sw=240 sh=24 -> anchor(ax,ay,deg)=(600.0,252.0,270) visible_box=(0.0, 0.0, 612.0, 792.0)
+2025-09-07 11:05:13,246 INFO transform deg=270 -> (tx,ty)=(624.0,12.0)
+2025-09-07 11:05:13,283 INFO stamp 'Prilog / Приложение 7.01' sw=240 sh=24 -> anchor(ax,ay,deg)=(600.0,780.0,0) visible_box=(0.0, 0.0, 612.0, 792.0)
+2025-09-07 11:05:13,283 INFO transform deg=0 -> (tx,ty)=(360.0,756.0)
+2025-09-07 11:05:13,316 INFO stamp 'Prilog / Приложение 7.01' sw=240 sh=24 -> anchor(ax,ay,deg)=(600.0,780.0,0) visible_box=(0.0, 0.0, 612.0, 792.0)
+2025-09-07 11:05:13,316 INFO transform deg=0 -> (tx,ty)=(360.0,756.0)
+2025-09-07 11:05:14,277 INFO stamp 'prilog1111...' sw=240 sh=24 -> anchor(ax,ay,deg)=(600.0,252.0,270) visible_box=(0.0, 0.0, 612.0, 792.0)
+2025-09-07 11:05:14,277 INFO transform deg=270 -> (tx,ty)=(624.0,12.0)
+2025-09-07 11:05:14,312 INFO stamp 'prilog1111...' sw=240 sh=24 -> anchor(ax,ay,deg)=(600.0,780.0,0) visible_box=(0.0, 0.0, 612.0, 792.0)
+2025-09-07 11:05:14,313 INFO transform deg=0 -> (tx,ty)=(360.0,756.0)
+2025-09-07 11:05:14,345 INFO stamp 'prilog1111...' sw=240 sh=24 -> anchor(ax,ay,deg)=(600.0,780.0,0) visible_box=(0.0, 0.0, 612.0, 792.0)
+2025-09-07 11:05:14,345 INFO transform deg=0 -> (tx,ty)=(360.0,756.0)
+2025-09-07 11:11:51,038 INFO Logger initialized
+2025-09-07 11:36:34,012 INFO Logger initialized
+2025-09-07 11:42:51,003 INFO Logger initialized
+2025-09-07 11:42:57,822 INFO Logger initialized
+2025-09-07 11:53:39,517 INFO Logger initialized
+2025-09-07 11:55:03,992 INFO Logger initialized
+2025-09-07 12:10:48,917 INFO Logger initialized
+2025-09-07 12:12:40,951 INFO Logger initialized
+2025-09-07 12:13:45,270 INFO Logger initialized
+2025-09-07 12:14:46,442 INFO Logger initialized
+2025-09-07 12:20:20,254 INFO Logger initialized
+2025-09-07 12:21:12,509 INFO Logger initialized
+2025-09-07 12:21:38,182 INFO Logger initialized
+2025-09-07 12:22:03,613 INFO Logger initialized
+2025-09-07 12:22:35,571 INFO Logger initialized
+2025-09-07 12:22:38,538 INFO Logger initialized
+2025-09-07 12:23:03,266 INFO Logger initialized
+2025-09-07 12:27:22,634 INFO Logger initialized
+2025-09-07 12:28:01,071 INFO Logger initialized
+2025-09-07 12:29:21,593 INFO Logger initialized
+2025-09-07 12:30:28,684 INFO Logger initialized
+2025-09-07 12:31:48,260 INFO Logger initialized
