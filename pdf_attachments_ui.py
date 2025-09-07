@@ -432,7 +432,9 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
     
     # 2. Получаем размеры страницы
     box = getattr(page, "cropbox", None) or page.mediabox
-    page_width = float(box.width)
+    # Use visual width for scaling: if page rotated 90/270, swap width/height
+    rotation = int(page.get('/Rotate', 0) or 0) % 360
+    page_width = float(box.height) if rotation in (90, 270) else float(box.width)
     
     # 3. Проверка, не слишком ли велик штамп для этой страницы
     # Порог: если штамп занимает > 60% ширины, он считается слишком большим
@@ -479,9 +481,12 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
     bbox_y_min, bbox_y_max = min(y_coords), max(y_coords)
 
     # 3. Определяем "ручку" на этой рамке в зависимости от выравнивания
+    # Map desired page-corner alignment to the corresponding rotated-stamp corner
     if alignment == 'top-left':
         handle_x, handle_y = bbox_x_min, bbox_y_max
-    else: # 'top-right'
+    elif alignment == 'bottom-right':
+        handle_x, handle_y = bbox_x_max, bbox_y_min
+    else:  # 'top-right'
         handle_x, handle_y = bbox_x_max, bbox_y_max
 
     # 4. Вычисляем смещение, чтобы переместить "ручку" в целевую точку (ax, ay)
