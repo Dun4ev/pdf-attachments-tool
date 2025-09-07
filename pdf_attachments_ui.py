@@ -328,7 +328,20 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
 
     # 7. Вычисляем положение и поворот
     ax, ay, deg, alignment = _anchor_and_angle(page, margin)
-    
+
+    # Adjust for 270° pages that are displayed as landscape: use top-right handle
+    try:
+        llx, lly, urx, ury = _visible_box(page)
+        width = urx - llx
+        height = ury - lly
+        rotation_int = int(page.get('/Rotate', 0) or 0) % 360
+        is_displayed_landscape = (rotation_int in (0, 180) and width > height) or \
+                                 (rotation_int in (90, 270) and height > width)
+        if rotation_int == 270 and is_displayed_landscape and alignment == 'top-left':
+            alignment = 'top-right'
+    except Exception:
+        pass
+
     import math
     rad = math.radians(deg)
     cos_d = math.cos(rad)
