@@ -330,14 +330,14 @@ def _anchor_and_angle(page, margin: float = 12.0):
     except Exception:
         pass
 
-    # Final targeted override for Letter 612x792 with Rotate=270 (visual landscape):
-    # Place stamp at visual top-right (equivalent to mirroring X from top-left).
+    # Generalized override for pages with Rotate=270 and portrait base geometry (w < h):
+    # Place stamp at visual top-right to avoid it going out on the right.
     try:
         llx2, lly2, urx2, ury2 = _visible_box(page)
         w2 = urx2 - llx2
         h2 = ury2 - lly2
         rot2 = int(page.get('/Rotate', 0) or 0) % 360
-        if rot2 == 270 and abs(w2 - 612.0) < 1.0 and abs(h2 - 792.0) < 1.0:
+        if rot2 == 270 and (w2 < h2):
             alignment = 'top-right'
             visible_h = min(w2, h2)
             ax = urx2 - margin
