@@ -340,8 +340,10 @@ def _anchor_and_angle(page, margin: float = 12.0):
         if rot2 == 270 and (w2 < h2):
             alignment = 'top-right'
             visible_h = min(w2, h2)
+            visible_w270=max(w2,h2)
             ax = urx2 - margin
-            ay = lly2 + visible_h - margin
+            ay = lly2 + visible_w270 - margin
+
     except Exception:
         pass
 
