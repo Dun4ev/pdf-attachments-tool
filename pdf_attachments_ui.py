@@ -307,16 +307,16 @@ def _anchor_and_angle(page, margin: float = 12.0):
     except Exception:
         pass
 
-    # Ensure top-left for Letter 612x792 with Rotate=270 (visual top-left)
-    try:
-        llx, lly, urx, ury = _visible_box(page)
-        width = urx - llx
-        height = ury - lly
-        rotation_int = int(page.get('/Rotate', 0) or 0) % 360
-        if rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
-            alignment = 'top-left'
-    except Exception:
-        pass
+    # [COMMENTED OUT] Ensure top-left for Letter 612x792 with Rotate=270 (visual top-left)
+    # try:
+    #     llx, lly, urx, ury = _visible_box(page)
+    #     width = urx - llx
+    #     height = ury - lly
+    #     rotation_int = int(page.get('/Rotate', 0) or 0) % 360
+    #     if rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
+    #         alignment = 'top-left'
+    # except Exception:
+    #     pass
 
     # Ensure top-left handle for 270° landscape pages (fix for Letter @270)
     try:
@@ -325,7 +325,8 @@ def _anchor_and_angle(page, margin: float = 12.0):
         width = urx - llx
         height = ury - lly
         is_displayed_landscape2 = ((rotation_int in (0, 180) and width > height) or (rotation_int in (90, 270) and height > width))
-        if rotation_int == 270 and is_displayed_landscape2:
+        # [COMMENTED OUT] disabled block
+        if False and rotation_int == 270 and is_displayed_landscape2:
             alignment = 'top-left'
     except Exception:
         pass
@@ -391,7 +392,8 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
         width = urx - llx
         height = ury - lly
         rotation_int = int(page.get('/Rotate', 0) or 0) % 360
-        if rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
+        # [COMMENTED OUT] disabled block condition
+        if False and rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
             visual_h = width  # for 270°, visual height equals original width
             alignment = 'top-left'
             ax = urx - (visual_h - margin)
@@ -406,7 +408,8 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
         height = ury - lly
         rotation_int = int(page.get('/Rotate', 0) or 0) % 360
         # Tolerant match for 612x792 (Letter) portrait mediabox with rotation 270
-        if rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
+        # [COMMENTED OUT] disabled block condition
+        if False and rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
             visual_h = width  # for 270°, visual height equals original width
             alignment = 'top-left'
             ax = urx - (visual_h - margin)
