@@ -307,16 +307,7 @@ def _anchor_and_angle(page, margin: float = 12.0):
     except Exception:
         pass
 
-    # [COMMENTED OUT] Ensure top-left for Letter 612x792 with Rotate=270 (visual top-left)
-    # try:
-    #     llx, lly, urx, ury = _visible_box(page)
-    #     width = urx - llx
-    #     height = ury - lly
-    #     rotation_int = int(page.get('/Rotate', 0) or 0) % 360
-    #     if rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
-    #         alignment = 'top-left'
-    # except Exception:
-    #     pass
+    
 
     # Ensure top-left handle for 270° landscape pages (fix for Letter @270)
     try:
