@@ -271,9 +271,12 @@ def _anchor_and_angle(page, margin: float = 12.0):
         elif rotation == 180:  # Визуальный ВЛ -> оригинальный НП
             ax = urx - margin
             ay = lly + margin
-        else:  # 270         # Визуальный ВЛ -> оригинальный ВП
-            ax = urx - margin
-            ay = ury - margin
+        else:  # 270         # Визуальный ВЛ для 270°: берём левый край и видимую высоту
+            # Для страниц типа 612x792 pt @270° (Letter, ландшафт от поворота)
+            # используем левую границу по X, чтобы не уезжать вправо за предел
+            visible_h = min(width, height)
+            ax = lly + margin
+            ay = llx + visible_h - margin
     else:
         # --- Книжная ориентация ---
         # Для повернутой на 270 градусов страницы, видимый верхний правый угол
@@ -292,6 +295,56 @@ def _anchor_and_angle(page, margin: float = 12.0):
             elif rotation == 180:
                 ax, ay = llx + margin, lly + margin
             
+    # Спец-фикс: для страниц с поворотом 270° и отображением в альбомной ориентации
+    # вычисляем якорь по визуальной системе координат (верхний левый) и маппим в оригинальные координаты.
+    try:
+        if is_displayed_landscape and rotation == 270:
+            visual_w = height  # при 270 визуальная ширина = высота бокса
+            visual_h = width   # при 270 визуальная высота = ширина бокса
+            dx = margin
+            dy = visual_h - margin
+            ax, ay = urx - dy, lly + dx
+    except Exception:
+        pass
+
+    # Ensure top-left for Letter 612x792 with Rotate=270 (visual top-left)
+    try:
+        llx, lly, urx, ury = _visible_box(page)
+        width = urx - llx
+        height = ury - lly
+        rotation_int = int(page.get('/Rotate', 0) or 0) % 360
+        if rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
+            alignment = 'top-left'
+    except Exception:
+        pass
+
+    # Ensure top-left handle for 270° landscape pages (fix for Letter @270)
+    try:
+        rotation_int = int(page.get('/Rotate', 0) or 0) % 360
+        llx, lly, urx, ury = _visible_box(page)
+        width = urx - llx
+        height = ury - lly
+        is_displayed_landscape2 = ((rotation_int in (0, 180) and width > height) or (rotation_int in (90, 270) and height > width))
+        if rotation_int == 270 and is_displayed_landscape2:
+            alignment = 'top-left'
+    except Exception:
+        pass
+
+    # Final targeted override for Letter 612x792 with Rotate=270 (visual landscape):
+    # Place stamp at visual top-right (equivalent to mirroring X from top-left).
+    try:
+        llx2, lly2, urx2, ury2 = _visible_box(page)
+        w2 = urx2 - llx2
+        h2 = ury2 - lly2
+        rot2 = int(page.get('/Rotate', 0) or 0) % 360
+        if rot2 == 270 and abs(w2 - 612.0) < 1.0 and abs(h2 - 792.0) < 1.0:
+            alignment = 'top-right'
+            visible_h = min(w2, h2)
+            ax = urx2 - margin
+            ay = lly2 + visible_h - margin
+    except Exception:
+        pass
+
     return ax, ay, deg, alignment
 
 def _merge_stamp(page, text: str, margin: float = 12.0):
@@ -328,6 +381,36 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
 
     # 7. Вычисляем положение и поворот
     ax, ay, deg, alignment = _anchor_and_angle(page, margin)
+
+    # Targeted fix: for pages 612x792 pt with Rotate=270 (Letter rotated),
+    # place stamp at visual top-left without affecting other 270° cases.
+    try:
+        llx, lly, urx, ury = _visible_box(page)
+        width = urx - llx
+        height = ury - lly
+        rotation_int = int(page.get('/Rotate', 0) or 0) % 360
+        if rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
+            visual_h = width  # for 270°, visual height equals original width
+            alignment = 'top-left'
+            ax = urx - (visual_h - margin)
+            ay = lly + margin
+    except Exception:
+        pass
+
+    # Targeted fix: Letter 612x792 rotated 270° displayed as landscape -> place at visual top-left
+    try:
+        llx, lly, urx, ury = _visible_box(page)
+        width = urx - llx
+        height = ury - lly
+        rotation_int = int(page.get('/Rotate', 0) or 0) % 360
+        # Tolerant match for 612x792 (Letter) portrait mediabox with rotation 270
+        if rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
+            visual_h = width  # for 270°, visual height equals original width
+            alignment = 'top-left'
+            ax = urx - (visual_h - margin)
+            ay = lly + margin
+    except Exception:
+        pass
 
     # Adjust for 270° pages that are displayed as landscape: use top-right handle
     try:

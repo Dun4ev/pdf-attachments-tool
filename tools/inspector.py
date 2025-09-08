@@ -7,7 +7,8 @@ if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
 
 # Абсолютный путь к файлу
-pdf_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "CT-DR-B-CS-AIR-II.24.1-00-1M-20250827-00_All.pdf"))
+pdf_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "CT-DR-B-CS-AIR-II.24.1-00-1M-20250827-00_All_6.pdf"))
+pdf_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "att.1_P 192-22.pdf"))
 
 try:
     reader = PdfReader(pdf_path)
