@@ -87,7 +87,7 @@ def safe_str(s: str):
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python inspect_pdf.py <pdf1> <pdf2>")
+        print("Usage: python tools/inspect_pdf.py <pdf1> <pdf2>")
         sys.exit(1)
     p1, p2 = sys.argv[1], sys.argv[2]
     # Try to use UTF-8 for stdout to avoid Windows codepage issues
@@ -150,4 +150,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 

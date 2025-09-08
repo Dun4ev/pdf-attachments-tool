@@ -1,4 +1,4 @@
-import os
+﻿import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from pypdf import PdfReader, PdfWriter
@@ -307,21 +307,6 @@ def _anchor_and_angle(page, margin: float = 12.0):
     except Exception:
         pass
 
-    
-
-    # Ensure top-left handle for 270° landscape pages (fix for Letter @270)
-    try:
-        rotation_int = int(page.get('/Rotate', 0) or 0) % 360
-        llx, lly, urx, ury = _visible_box(page)
-        width = urx - llx
-        height = ury - lly
-        is_displayed_landscape2 = ((rotation_int in (0, 180) and width > height) or (rotation_int in (90, 270) and height > width))
-        # [COMMENTED OUT] disabled block
-        if False and rotation_int == 270 and is_displayed_landscape2:
-            alignment = 'top-left'
-    except Exception:
-        pass
-
     # Generalized override for pages with Rotate=270 and portrait base geometry (w < h):
     # Place stamp at visual top-right to avoid it going out on the right.
     try:
@@ -375,38 +360,6 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
 
     # 7. Вычисляем положение и поворот
     ax, ay, deg, alignment = _anchor_and_angle(page, margin)
-
-    # Targeted fix: for pages 612x792 pt with Rotate=270 (Letter rotated),
-    # place stamp at visual top-left without affecting other 270° cases.
-    try:
-        llx, lly, urx, ury = _visible_box(page)
-        width = urx - llx
-        height = ury - lly
-        rotation_int = int(page.get('/Rotate', 0) or 0) % 360
-        # [COMMENTED OUT] disabled block condition
-        if False and rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
-            visual_h = width  # for 270°, visual height equals original width
-            alignment = 'top-left'
-            ax = urx - (visual_h - margin)
-            ay = lly + margin
-    except Exception:
-        pass
-
-    # Targeted fix: Letter 612x792 rotated 270° displayed as landscape -> place at visual top-left
-    try:
-        llx, lly, urx, ury = _visible_box(page)
-        width = urx - llx
-        height = ury - lly
-        rotation_int = int(page.get('/Rotate', 0) or 0) % 360
-        # Tolerant match for 612x792 (Letter) portrait mediabox with rotation 270
-        # [COMMENTED OUT] disabled block condition
-        if False and rotation_int == 270 and abs(width - 612.0) < 1.0 and abs(height - 792.0) < 1.0:
-            visual_h = width  # for 270°, visual height equals original width
-            alignment = 'top-left'
-            ax = urx - (visual_h - margin)
-            ay = lly + margin
-    except Exception:
-        pass
 
     # Adjust for 270° pages that are displayed as landscape: use top-right handle
     try:
@@ -1094,3 +1047,4 @@ current_req_height = root.winfo_reqheight()
 root.geometry(f"{desired_width}x{current_req_height}")
 
 root.mainloop()
+
