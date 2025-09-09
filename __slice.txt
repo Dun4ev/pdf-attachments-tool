@@ -1,0 +1,13 @@
+            # Применяем двухуровневый TOC: Izvestaj / Prilog
+            try:
+                if apply_toc is not None and compose_two_level_toc is not None and SourceToc is not None:
+                    rep = report_toc if report_toc is not None else SourceToc(entries=[], pages=0)
+                    # Отфильтруем пустые/ошибочные элементы
+                    atts = [a for a in attachments_toc if a is not None]
+                    final_toc = compose_multi_attachment_toc(rep, atts, report_title="Izvestaj", attachment_prefix="Prilog")
+                    apply_toc(merged_path, final_toc)
+                    logging.info("TOC применён: Izvestaj/Prilog, записей: %d", len(final_toc))
+                else:
+                    logging.info("Пропуск применения TOC: модуль bookmarks/PyMuPDF недоступен")
+            except Exception as e:
+                logging.warning("Не удалось применить TOC к итоговому PDF: %s", e)

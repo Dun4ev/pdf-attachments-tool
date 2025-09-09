@@ -20,3 +20,8 @@
 2025-09-09 23:46:01,077 INFO TOC применён: Izvestaj/Prilog, записей: 163
 2025-09-09 23:50:44,855 INFO TOC применён: Izvestaj/Prilog, записей: 165
 2025-09-09 23:52:25,682 INFO TOC применён: Izvestaj/Prilog, записей: 165
+2025-09-10 00:05:47,650 INFO Logger initialized
+2025-09-10 00:06:19,733 WARNING Не удалось применить TOC к итоговому PDF: [WinError 5] Отказано в доступе: 'D:\\SynologyDrive\\Code_and_Scripts\\Работа_с_файлами_и_папкам\\PDF_attachments\\Test\\Закладки\\_toc_wt6jqr42.pdf' -> 'D:/SynologyDrive/Code_and_Scripts/Работа_с_файлами_и_папкам/PDF_attachments/Test/Закладки/CT-DR-B-LP-MCC-I.6.1-00-DL-20250829 - 2 закл_All.pdf'
+2025-09-10 00:07:10,587 INFO Logger initialized
+2025-09-10 00:07:45,786 INFO TOC применён: Izvestaj/Prilog, записей: 165
+2025-09-10 00:08:27,373 INFO TOC применён: Izvestaj/Prilog, записей: 163

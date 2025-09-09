@@ -99,6 +99,7 @@ def compose_multi_attachment_toc(
     attachments: Sequence[SourceToc],
     report_title: str = "Izvestaj",
     attachment_prefix: str = "Prilog",
+    attachment_names: Sequence[str] | None = None,
 ) -> List[TocEntry]:
     """Собрать TOC с верхним уровнем для отчёта и отдельным верхним уровнем для каждого приложения.
 
@@ -124,7 +125,12 @@ def compose_multi_attachment_toc(
     for idx, att in enumerate(attachments, start=1):
         if att.pages <= 0:
             continue
-        top = f"{attachment_prefix} {idx}"
+        suffix = ""
+        if attachment_names and idx - 1 < len(attachment_names):
+            name = (attachment_names[idx - 1] or "").strip()
+            if name:
+                suffix = f" - {name}"
+        top = f"{attachment_prefix} {idx}{suffix}"
         result.append((1, top, max(1, offset + 1)))
         for lvl, title, page in att.entries:
             result.append((max(2, int(lvl) + 1), str(title), max(1, int(page) + offset)))

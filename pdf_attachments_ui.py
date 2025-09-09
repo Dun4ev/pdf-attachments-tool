@@ -594,11 +594,18 @@ def create_merged_pdf():
         logging.warning("Не удалось извлечь TOC из PDF (Word-конверсия, post): %s", e)
 
     pdf_temp_paths = []
+    attachments_names = []
     for i, path in enumerate(file_paths):
         if path:
             text = entries[i].get().strip()
             temp_pdf = os.path.join(os.path.dirname(path), f"__temp_att_{i+1}.pdf")
             try:
+                # Имя файла для заголовка узла Prilog N - <name>
+                try:
+                    base = os.path.splitext(os.path.basename(path))[0]
+                except Exception:
+                    base = os.path.basename(path)
+                attachments_names.append(base)
                 # Извлечём TOC исходного файла до штамповки (если доступно)
                 if extract_toc is not None:
                     try:
@@ -650,8 +657,10 @@ def create_merged_pdf():
                 if apply_toc is not None and compose_two_level_toc is not None and SourceToc is not None:
                     rep = report_toc if report_toc is not None else SourceToc(entries=[], pages=0)
                     # Отфильтруем пустые/ошибочные элементы
-                    atts = [a for a in attachments_toc if a is not None]
-                    final_toc = compose_multi_attachment_toc(rep, atts, report_title="Izvestaj", attachment_prefix="Prilog")
+                    pair = [(a, n) for a, n in zip(attachments_toc, attachments_names) if a is not None]
+                    atts = [a for a, _n in pair]
+                    att_names = [_n for _a, _n in pair]
+                    final_toc = compose_multi_attachment_toc(rep, atts, report_title="Izvestaj", attachment_prefix="Prilog", attachment_names=att_names)
                     apply_toc(merged_path, final_toc)
                     logging.info("TOC применён: Izvestaj/Prilog, записей: %d", len(final_toc))
                 else:
