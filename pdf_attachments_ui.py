@@ -12,6 +12,17 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from docx2pdf import convert  # <--- добавьте эту строку
 import shutil
+import logging
+
+# Закладки/оглавление: извлечение и запись через PyMuPDF, если доступен
+try:
+    from pdf_attachments.bookmarks import extract_toc, compose_two_level_toc, apply_toc, SourceToc
+except Exception as _e:  # безопасный фолбэк
+    extract_toc = None  # type: ignore
+    compose_two_level_toc = None  # type: ignore
+    apply_toc = None  # type: ignore
+    SourceToc = None  # type: ignore
+    logging.getLogger(__name__).warning("Модуль pdf_attachments.bookmarks недоступен: %s", _e)
 
 # --- ИСТОРИЯ ПРОБЛЕМЫ И РЕШЕНИЕ ---
 # Изначально проект использовал библиотеку PyPDF2. В ходе работы была обнаружена
@@ -516,6 +527,9 @@ def convert_word_to_pdf():
 def create_merged_pdf():
     temp_files = []
     merged_writer = PdfWriter()
+    # Данные для сборки TOC (если доступен модуль bookmarks/PyMuPDF)
+    report_toc = None
+    attachments_toc = []
     
     main_report_path = None
     base_name_for_save = "merged"
@@ -534,6 +548,12 @@ def create_merged_pdf():
             shutil.copy(main_report_path, temp_main_pdf)
             temp_files.append(temp_main_pdf)
             has_report = True
+            # Извлечём TOC отчёта до последующей сборки
+            if extract_toc is not None:
+                try:
+                    report_toc = extract_toc(main_report_path)
+                except Exception as e:
+                    logging.warning("Не удалось извлечь TOC отчёта: %s", e)
         except Exception as e:
             status_var.set(f"❌ Ошибка при копировании PDF-отчета: {e}")
             return
@@ -559,12 +579,26 @@ def create_merged_pdf():
                 return
 
     # 2. PDF-файлы приложений с текстом
+    # Извлечение TOC из PDF, созданного из Word (если ещё не извлечён)
+    try:
+        if report_toc is None and 'word_pdf_path' in locals() and os.path.exists(word_pdf_path) and extract_toc is not None:
+            report_toc = extract_toc(word_pdf_path)
+    except Exception as e:
+        logging.warning("Не удалось извлечь TOC из PDF (Word-конверсия, post): %s", e)
+
     pdf_temp_paths = []
     for i, path in enumerate(file_paths):
         if path:
             text = entries[i].get().strip()
             temp_pdf = os.path.join(os.path.dirname(path), f"__temp_att_{i+1}.pdf")
             try:
+                # Извлечём TOC исходного файла до штамповки (если доступно)
+                if extract_toc is not None:
+                    try:
+                        attachments_toc.append(extract_toc(path))
+                    except Exception as e:
+                        logging.warning("Не удалось извлечь TOC приложения (%s): %s", os.path.basename(path), e)
+                        attachments_toc.append(None)
                 reader = PdfReader(path)
                 writer = PdfWriter()
                 for page in reader.pages:
@@ -604,6 +638,19 @@ def create_merged_pdf():
             last_merged_pdf_path[0] = merged_path
             status_var.set(f"✅ Общий PDF создан: {os.path.basename(merged_path)}")
             create_pdf_link(merged_path)
+            # Применяем двухуровневый TOC: Izvestaj / Prilog
+            try:
+                if apply_toc is not None and compose_two_level_toc is not None and SourceToc is not None:
+                    rep = report_toc if report_toc is not None else SourceToc(entries=[], pages=0)
+                    # Отфильтруем пустые/ошибочные элементы
+                    atts = [a for a in attachments_toc if a is not None]
+                    final_toc = compose_two_level_toc(rep, atts, report_title="Izvestaj", attachments_title="Prilog")
+                    apply_toc(merged_path, final_toc)
+                    logging.info("TOC применён: Izvestaj/Prilog, записей: %d", len(final_toc))
+                else:
+                    logging.info("Пропуск применения TOC: модуль bookmarks/PyMuPDF недоступен")
+            except Exception as e:
+                logging.warning("Не удалось применить TOC к итоговому PDF: %s", e)
         else:
             status_var.set("Операция отменена.")
     except Exception as e:

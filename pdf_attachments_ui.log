@@ -9,3 +9,10 @@
 2025-09-09 22:07:58,460 INFO Logger initialized
 2025-09-09 22:08:10,630 INFO Logger initialized
 2025-09-09 22:32:28,406 INFO Logger initialized
+2025-09-09 23:22:16,773 INFO Logger initialized
+2025-09-09 23:22:47,708 WARNING Не удалось применить TOC к итоговому PDF: [WinError 5] Отказано в доступе: 'D:\\SynologyDrive\\Code_and_Scripts\\Работа_с_файлами_и_папкам\\PDF_attachments\\Test\\1\\_toc_n567irto.pdf' -> 'D:/SynologyDrive/Code_and_Scripts/Работа_с_файлами_и_папкам/PDF_attachments/Test/1/IDC-DR-B-LP-GMS3-I.5.10-00-R-20250409-00_All.pdf'
+2025-09-09 23:31:02,956 INFO Logger initialized
+2025-09-09 23:35:13,645 INFO TOC применён: Izvestaj/Prilog, записей: 161
+2025-09-09 23:36:10,480 INFO TOC применён: Izvestaj/Prilog, записей: 162
+2025-09-09 23:37:02,212 INFO TOC применён: Izvestaj/Prilog, записей: 162
+2025-09-09 23:38:23,805 INFO TOC применён: Izvestaj/Prilog, записей: 164
