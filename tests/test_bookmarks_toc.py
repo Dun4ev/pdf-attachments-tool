@@ -50,7 +50,9 @@ def test_compose_and_apply_toc(tmp_path: Path) -> None:
     att = extract_toc(attach_pdf.as_posix())
 
     # Собираем итоговый TOC
-    final_toc = compose_two_level_toc(rep, [att], report_title="Izvestaj", attachments_title="Prilog")
+    # Вариант B: отдельные верхние уровни для каждого приложения
+    from pdf_attachments.bookmarks import compose_multi_attachment_toc
+    final_toc = compose_multi_attachment_toc(rep, [att], report_title="Izvestaj", attachment_prefix="Prilog")
 
     # Объединяем файлы в один (через PyMuPDF для простоты теста)
     merged = tmp_path / "merged.pdf"
@@ -68,7 +70,7 @@ def test_compose_and_apply_toc(tmp_path: Path) -> None:
 
     # Верхний уровень и смещения
     assert [1, "Izvestaj", 1] in toc
-    assert [1, "Prilog", 3] in toc  # отчёт 2 стр., приложения начинаются с 3
+    assert [1, "Prilog 1", 3] in toc  # отчёт 2 стр., приложения начинаются с 3
 
     # Дочерние элементы отчёта повышены на уровень и без смещения страниц
     assert [2, "R-Top", 1] in toc
@@ -77,4 +79,3 @@ def test_compose_and_apply_toc(tmp_path: Path) -> None:
     # Дочерние элементы приложений повышены на уровень и со смещением +2
     assert [2, "A-Top", 3] in toc
     assert [3, "A-Sub", 5] in toc
-

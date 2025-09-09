@@ -16,10 +16,17 @@ import logging
 
 # Закладки/оглавление: извлечение и запись через PyMuPDF, если доступен
 try:
-    from pdf_attachments.bookmarks import extract_toc, compose_two_level_toc, apply_toc, SourceToc
+    from pdf_attachments.bookmarks import (
+        extract_toc,
+        compose_two_level_toc,
+        compose_multi_attachment_toc,
+        apply_toc,
+        SourceToc,
+    )
 except Exception as _e:  # безопасный фолбэк
     extract_toc = None  # type: ignore
     compose_two_level_toc = None  # type: ignore
+    compose_multi_attachment_toc = None  # type: ignore
     apply_toc = None  # type: ignore
     SourceToc = None  # type: ignore
     logging.getLogger(__name__).warning("Модуль pdf_attachments.bookmarks недоступен: %s", _e)
@@ -644,7 +651,7 @@ def create_merged_pdf():
                     rep = report_toc if report_toc is not None else SourceToc(entries=[], pages=0)
                     # Отфильтруем пустые/ошибочные элементы
                     atts = [a for a in attachments_toc if a is not None]
-                    final_toc = compose_two_level_toc(rep, atts, report_title="Izvestaj", attachments_title="Prilog")
+                    final_toc = compose_multi_attachment_toc(rep, atts, report_title="Izvestaj", attachment_prefix="Prilog")
                     apply_toc(merged_path, final_toc)
                     logging.info("TOC применён: Izvestaj/Prilog, записей: %d", len(final_toc))
                 else:

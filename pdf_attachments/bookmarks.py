@@ -94,6 +94,45 @@ def compose_two_level_toc(
     return result
 
 
+def compose_multi_attachment_toc(
+    report: SourceToc,
+    attachments: Sequence[SourceToc],
+    report_title: str = "Izvestaj",
+    attachment_prefix: str = "Prilog",
+) -> List[TocEntry]:
+    """Собрать TOC с верхним уровнем для отчёта и отдельным верхним уровнем для каждого приложения.
+
+    Пример результата:
+    - [1, "Izvestaj", 1]
+      + дочерние отчёта (lvl+1)
+    - [1, "Prilog 1", offset_of_att1+1]
+      + дочерние att1 (lvl+1, page+offset_of_att1)
+    - [1, "Prilog 2", offset_of_att2+1]
+      + дочерние att2 (lvl+1, page+offset_of_att2)
+    """
+    result: List[TocEntry] = []
+
+    # Отчёт
+    if report.pages > 0:
+        result.append((1, report_title, 1))
+        for lvl, title, page in report.entries:
+            result.append((max(2, int(lvl) + 1), str(title), max(1, int(page))))
+
+    # Смещение для приложений
+    offset = report.pages
+
+    for idx, att in enumerate(attachments, start=1):
+        if att.pages <= 0:
+            continue
+        top = f"{attachment_prefix} {idx}"
+        result.append((1, top, max(1, offset + 1)))
+        for lvl, title, page in att.entries:
+            result.append((max(2, int(lvl) + 1), str(title), max(1, int(page) + offset)))
+        offset += att.pages
+
+    return result
+
+
 def apply_toc(target_pdf_path: str, toc: Iterable[TocEntry]) -> None:
     """Применить TOC к PDF. Перезаписывает документ с новым TOC.
 
