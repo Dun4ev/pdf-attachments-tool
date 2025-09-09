@@ -1,44 +1,35 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Структура проекта
+- `pdf_attachments_ui.py` — основное приложение (GUI/CLI).
+- `assets/` — шрифты, иконки, скриншоты, вспомогательные документы.
+- `build/`, `dist/` — артефакты сборки (PyInstaller); не редактируются вручную.
+- `Test/` — примеры входных файлов для локальной проверки.
+- `requirements.txt` — зависимости рантайма и разработки.
+- `README.md`, `MANUAL.md` — вводная и руководство пользователя.
 
-- Source: `src/pdf_attachments/` — основная логика и CLI (`cli.py`).
-- Tests: `tests/` — зеркалирует структуру пакета, фикстуры в `tests/conftest.py`.
-- Scripts: `scripts/` — одноразовые утилиты и примеры запуска.
-- Data: `data/` — тестовые файлы PDF/вложения (не коммитим чувствительное).
-- Docs: `docs/` — заметки, схемы, ADR.
-- Именование: модули/пакеты — `snake_case`, классы — `PascalCase`, функции/переменные — `snake_case`.
+## Сборка, запуск и тесты
+- Установка: `python -m venv .venv && .venv/Scripts/activate && pip install -r requirements.txt` (Windows).
+- Запуск локально: `python pdf_attachments_ui.py`.
+- Сборка (PyInstaller): `pyinstaller pdf_attachments_ui.spec` (артефакты в `dist/`).
+- Тесты (pytest): `pytest -q`.
 
-## Build, Test, and Development Commands
+## Стиль кода и нейминг
+- Python ≥3.10, PEP8, 4 пробела. Обязательны type hints.
+- Имена: `snake_case` для функций/переменных, `PascalCase` для классов, `UPPER_CASE` для констант, файлы — `lower_snake_case.py`.
+- Форматирование: `black .`; линт: `ruff .` (если установлены). Логи — через `logging`, без `print`.
 
-- Создать окружение (Windows): `py -3.10 -m venv .venv && .\.venv\Scripts\activate`.
-- Установка: `pip install -U pip && pip install -e ".[dev]"`.
-- Тесты: `pytest -q` (см. покрытие ниже).
-- Стиль: `ruff check .` и автоформат `ruff format .` (или `black .`).
-- Запуск CLI: `python -m pdf_attachments.cli --help`.
+## Рекомендации по тестированию
+- Фреймворк: pytest. Тесты в `tests/`, зеркально структуре исходников.
+- Имена тестов: `tests/test_<module>.py`, функции — `test_*`.
+- Покрытие целевое ≥70% для нового кода; проверяйте граничные и отрицательные кейсы.
 
-## Coding Style & Naming Conventions
+## Коммиты и Pull Request’ы
+- Коммиты по Conventional Commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
+- PR: краткое описание задачи, ссылка на issue/тикет, шаги воспроизведения/скриншоты при UI‑изменениях, список проверок (lint/format/test зелёные).
 
-- Python ≥3.10, PEP8, отступы 4 пробела, типы везде.
-- Докстринги — стиль Google; избегать длинных функций, одна ответственность.
-- Логирование через `logging` (без `print`); структурированные сообщения.
-- Конфигурация через переменные окружения/`.env` (см. ниже).
+## Безопасность и конфигурация
+- Пути и имена файлов — в Unicode; сохраняйте кодировку UTF‑8.
+- Не храните секреты в репозитории; используйте переменные окружения.
+- Санитизируйте пользовательские пути и входные данные; избегайте небезопасной десериализации.
 
-## Testing Guidelines
-
-- Framework: `pytest`; имена тестов `test_*.py`, функции — `test_*`.
-- Покрытие: цель ≥85% (`pytest --cov=pdf_attachments --cov-report=term-missing`).
-- Тесты зеркалируют дерево `src/`; edge-cases для файлов/путей/кодировок.
-- При багфиксе: сначала падающий тест, затем исправление.
-
-## Commit & Pull Request Guidelines
-
-- Коммиты: Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`); заголовок ≤72 символов.
-- Сообщение вкла для чючает «почему/что/как»; ссылки на задачи.
-- PR: краткое описание, связанные issues, инструкции для ревью, скриншоты/логи для UX/CLI-изменений.
-
-## Security & Configuration Tips
-
-- Секреты: не коммитить; используйте `.env` и образец `.env.example`.
-- Пути/файлы: санитайзинг, запрет на произвольные пути извне.
-- Режимы: по умолчанию dry‑run для потенциально разрушающих действий; явные флаги `--yes/--force`.

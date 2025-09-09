@@ -1,33 +1,29 @@
+"""Тесты для файла AGENTS.md.
+
+Проверяются базовые инварианты: наличие файла, заголовок и ключевые разделы.
+"""
+
 from pathlib import Path
 
 
-def test_agents_md_exists_and_has_required_headings() -> None:
-    """Проверяет наличие AGENTS.md и ключевых заголовков.
+def test_agents_md_exists() -> None:
+    path = Path("AGENTS.md")
+    assert path.exists(), "Ожидался файл AGENTS.md в корне репозитория"
 
-    - Файл лежит в корне репозитория.
-    - Первый заголовок — "# Repository Guidelines".
-    - Присутствуют обязательные секции.
-    """
 
-    repo_root = Path(__file__).resolve().parents[1]
-    md_path = repo_root / "AGENTS.md"
-    assert md_path.exists(), "Ожидался файл AGENTS.md в корне репозитория"
-
-    content = md_path.read_text(encoding="utf-8")
-    # Первая строка — заголовок документа
-    first_line = content.splitlines()[0].strip()
-    assert (
-        first_line == "# Repository Guidelines"
-    ), "Первый заголовок должен быть '# Repository Guidelines'"
-
-    required = [
-        "## Project Structure & Module Organization",
-        "## Build, Test, and Development Commands",
-        "## Coding Style & Naming Conventions",
-        "## Testing Guidelines",
-        "## Commit & Pull Request Guidelines",
-        "## Security & Configuration Tips",
+def test_agents_md_structure() -> None:
+    content = Path("AGENTS.md").read_text(encoding="utf-8")
+    # Заголовок документа
+    assert content.splitlines()[0].strip() == "# Repository Guidelines"
+    # Ключевые разделы
+    required_sections = [
+        "## Структура проекта",
+        "## Сборка, запуск и тесты",
+        "## Стиль кода и нейминг",
+        "## Рекомендации по тестированию",
+        "## Коммиты и Pull Request’ы",
+        "## Безопасность и конфигурация",
     ]
-    for heading in required:
-        assert heading in content, f"Отсутствует раздел: {heading}"
+    for section in required_sections:
+        assert section in content, f"Отсутствует раздел: {section}"
 

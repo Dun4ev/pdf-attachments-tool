@@ -1,4 +1,4 @@
-﻿import os
+import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from pypdf import PdfReader, PdfWriter
@@ -382,6 +382,29 @@ def insert_text_to_pdf_safe(pdf_path, text, save_as_new, prefix):
 def insert_text_to_pdf(pdf_path, text, save_as_new, prefix):
     return insert_text_to_pdf_safe(pdf_path, text, save_as_new, prefix)
 
+# === Объединение с закладками ===
+def merge_pdfs_with_bookmarks(parts: list[tuple[str, str]], output_path: str) -> None:
+    """Объединяет PDF и создаёт верхнеуровневые закладки.
+
+    Args:
+        parts: Список (path, title). Для каждого PDF добавляется
+            верхнеуровневая закладка `title`; существующие закладки
+            исходников переносятся (если есть).
+        output_path: Путь для сохранения результирующего PDF.
+
+    Raises:
+        FileNotFoundError: Если входного PDF нет на диске.
+        Exception: Прочие ошибки чтения/записи PDF.
+    """
+    writer = PdfWriter()
+    for pdf_path, title in parts:
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(f"PDF not found: {pdf_path}")
+        # outline_item — верхнеуровневая закладка; import_outline — перенос исходных
+        writer.append(pdf_path, outline_item=(title or None), import_outline=True)
+    with open(output_path, "wb") as out:
+        writer.write(out)
+
 # === ЛОГИКА ===
 def process_pdfs(save_as_new):
     if not any(file_paths):
@@ -496,6 +519,7 @@ def create_merged_pdf():
     
     main_report_path = None
     base_name_for_save = "merged"
+    has_report = False
 
     # 1. Определяем основной отчет (PDF или Word)
     if pdf_report_file_path[0]:
@@ -509,6 +533,7 @@ def create_merged_pdf():
         try:
             shutil.copy(main_report_path, temp_main_pdf)
             temp_files.append(temp_main_pdf)
+            has_report = True
         except Exception as e:
             status_var.set(f"❌ Ошибка при копировании PDF-отчета: {e}")
             return
