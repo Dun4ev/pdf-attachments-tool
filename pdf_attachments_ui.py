@@ -128,63 +128,8 @@ def register_font():
 FONT_USED = register_font()
 
 # === PDF ОБРАБОТКА ===
-def create_overlay(text, width, height, rotation=0):
-    packet = BytesIO()
-    can = canvas.Canvas(packet, pagesize=(width, height))
-    can.setFont(FONT_USED, 11)
-    
-    margin = 40  # Отступ от краев
-    
-    can.saveState()
-
-    # Логика для размещения текста в правом верхнем углу ВИДИМОЙ страницы.
-    # 1. Перемещаем начало координат (translate) в целевой угол.
-    # 2. Поворачиваем систему координат (rotate).
-    # 3. Рисуем текст с выравниванием по правому краю в новой точке (0,0).
-
-    if rotation == 90:
-        # Видимый ВП угол -> сохраненный ВЛ (верхний левый) угол
-        can.translate(margin, height - margin)
-        can.rotate(90)
-    elif rotation == 180:
-        # Видимый ВП угол -> сохраненный НЛ (нижний левый) угол
-        can.translate(margin, margin)
-        can.rotate(180)
-    elif rotation == 270:
-        # Видимый ВП угол -> сохраненный НП (нижний правый) угол
-        can.translate(width - margin, margin)
-        can.rotate(270)
-    elif width > height: # Альбомная страница без флага поворота (из Word)
-        # Видимый ВП угол -> сохраненный ВП угол, но текст должен быть вертикальным
-        can.translate(width - margin, height - margin)
-        can.rotate(90)
-    else: # Портретная страница без флага поворота
-        # Видимый ВП угол -> сохраненный ВП угол
-        can.translate(width - margin, height - margin)
-        # Поворот не нужен
-    
-    # Рисуем текст с выравниванием по правому краю в точке (0,0) новой системы координат
-    can.drawRightString(0, 0, text)
-            
-    can.restoreState()
-    can.save()
-    packet.seek(0)
-    return PdfReader(packet).pages[0]
 
 # --- Новая логика: штамп без прозрачности, учёт CropBox/Rotate ---
-def _create_stamp_page(text: str, stamp_width: float = 200, stamp_height: float = 40):
-    """
-    Небольшая страница-штамп с текстом (Helvetica), без прозрачности.
-    Текст выравнивается по правому краю в точке (stamp_width, 0) — это якорь.
-    """
-    packet = BytesIO()
-    can = canvas.Canvas(packet, pagesize=(stamp_width, stamp_height))
-    can.setFont("Helvetica", 12)
-    can.drawRightString(stamp_width, 0, text)
-    can.save()
-    packet.seek(0)
-    return PdfReader(packet).pages[0], stamp_width, stamp_height
-
 # Redefine with advanced options (will override previous one at import time)
 def _create_stamp_page(
     text: str,
@@ -334,147 +279,6 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
     initial_sh = 24.0
     initial_font_size = 11.0 # Желаемый размер шрифта
     
-    # 2. Получаем размеры и поворот страницы
-    box = getattr(page, "cropbox", None) or page.mediabox
-    rotation = page.get('/Rotate', 0) or 0
-    # Используем ВИЗУАЛЬНУЮ ширину для проверки
-    visual_page_width = float(box.height) if rotation in (90, 270) else float(box.width)
-
-    # 3. Проверка, не слишком ли велик штамп для этой страницы
-    threshold = 0.60
-    if initial_sw > visual_page_width * threshold:
-        # 4. Да, штамп слишком большой. Вычисляем коэффициент уменьшения.
-        scale = (visual_page_width * threshold) / initial_sw
-        final_sw, final_sh, final_font_size = initial_sw * scale, initial_sh * scale, initial_font_size * scale
-    else:
-        # 5. Нет, страница достаточно большая. Используем стандартные размеры.
-        final_sw, final_sh, final_font_size = initial_sw, initial_sh, initial_font_size
-
-    # 6. Создаем штамп с финальными размерами
-    stamp, sw, sh = _create_stamp_page(
-        text,
-        stamp_width=final_sw,
-        stamp_height=final_sh,
-        font_size=int(round(final_font_size))
-    )
-
-    # 7. Вычисляем положение и поворот
-    ax, ay, deg, alignment = _anchor_and_angle(page, margin)
-
-    # Adjust for 270° pages that are displayed as landscape: use top-right handle
-    try:
-        llx, lly, urx, ury = _visible_box(page)
-        width = urx - llx
-        height = ury - lly
-        rotation_int = int(page.get('/Rotate', 0) or 0) % 360
-        is_displayed_landscape = (rotation_int in (0, 180) and width > height) or \
-                                 (rotation_int in (90, 270) and height > width)
-        if rotation_int == 270 and is_displayed_landscape and alignment == 'top-left':
-            alignment = 'top-right'
-    except Exception:
-        pass
-
-    import math
-    rad = math.radians(deg)
-    cos_d = math.cos(rad)
-    sin_d = math.sin(rad)
-
-    # --- Новая, корректная логика вычисления трансформации ---
-    c0 = (0, 0)
-    c1 = (sw * cos_d, sw * sin_d)
-    c2 = (-sh * sin_d, sh * cos_d)
-    c3 = (sw * cos_d - sh * sin_d, sw * sin_d + sh * cos_d)
-
-    x_coords = [c0[0], c1[0], c2[0], c3[0]]
-    y_coords = [c0[1], c1[1], c2[1], c3[1]]
-    bbox_x_min, bbox_x_max = min(x_coords), max(x_coords)
-    bbox_y_min, bbox_y_max = min(y_coords), max(y_coords)
-
-    if alignment == 'top-left':
-        handle_x, handle_y = bbox_x_min, bbox_y_max
-    elif alignment == 'bottom-right':
-        handle_x, handle_y = bbox_x_max, bbox_y_min
-    else: # 'top-right'
-        handle_x, handle_y = bbox_x_max, bbox_y_max
-
-    tx = ax - handle_x
-    ty = ay - handle_y
-    
-    transform = Transformation().rotate(deg).translate(tx=tx, ty=ty)
-
-def _merge_stamp(page, text: str, margin: float = 12.0):
-    # --- Новая логика: Адаптивный размер штампа для маленьких страниц ---
-    
-    # 1. Исходные параметры для штампа и шрифта
-    initial_sw = 240.0
-    initial_sh = 24.0
-    initial_font_size = 11.0 # Желаемый размер шрифта
-    
-    # 2. Получаем размеры страницы
-    box = getattr(page, "cropbox", None) or page.mediabox
-    # Используем ВИЗУАЛЬНУЮ ширину для проверки
-    rotation = page.get('/Rotate', 0) or 0
-    visual_page_width = float(box.height) if rotation in (90, 270) else float(box.width)
-
-    # 3. Проверка, не слишком ли велик штамп для этой страницы
-    threshold = 0.60
-    if initial_sw > visual_page_width * threshold:
-        # 4. Да, штамп слишком большой. Вычисляем коэффициент уменьшения.
-        scale = (visual_page_width * threshold) / initial_sw
-        final_sw = initial_sw * scale
-        final_sh = initial_sh * scale
-        final_font_size = initial_font_size * scale
-    else:
-        # 5. Нет, страница достаточно большая. Используем стандартные размеры.
-        final_sw, final_sh, final_font_size = initial_sw, initial_sh, initial_font_size
-
-    # 6. Создаем штамп с финальными (возможно, уменьшенными) размерами
-    stamp, sw, sh = _create_stamp_page(
-        text,
-        stamp_width=final_sw,
-        stamp_height=final_sh,
-        font_size=int(round(final_font_size))
-    )
-
-    # 7. Вычисляем положение и поворот
-    ax, ay, deg, alignment = _anchor_and_angle(page, margin)
-    
-    import math
-    rad = math.radians(deg)
-    cos_d = math.cos(rad)
-    sin_d = math.sin(rad)
-
-    # --- Новая, корректная логика вычисления трансформации ---
-    c0 = (0, 0)
-    c1 = (sw * cos_d, sw * sin_d)
-    c2 = (-sh * sin_d, sh * cos_d)
-    c3 = (sw * cos_d - sh * sin_d, sw * sin_d + sh * cos_d)
-
-    x_coords = [c0[0], c1[0], c2[0], c3[0]]
-    y_coords = [c0[1], c1[1], c2[1], c3[1]]
-    bbox_x_min, bbox_x_max = min(x_coords), max(x_coords)
-    bbox_y_min, bbox_y_max = min(y_coords), max(y_coords)
-
-    if alignment == 'top-left':
-        handle_x, handle_y = bbox_x_min, bbox_y_max
-    elif alignment == 'bottom-right': # Новый случай для поворота 270
-        handle_x, handle_y = bbox_x_max, bbox_y_min
-    else: # 'top-right'
-        handle_x, handle_y = bbox_x_max, bbox_y_max
-
-    tx = ax - handle_x
-    ty = ay - handle_y
-    
-    transform = Transformation().rotate(deg).translate(tx=tx, ty=ty)
-
-def _merge_stamp(page, text: str, margin: float = 12.0):
-    # --- Новая логика: Адаптивный размер штампа для маленьких страниц ---
-    
-    # 1. Исходные параметры для штампа и шрифта
-    initial_sw = 240.0
-    initial_sh = 24.0
-    initial_font_size = 11.0 # Желаемый размер шрифта
-    
     # 2. Получаем размеры страницы
     box = getattr(page, "cropbox", None) or page.mediabox
     # Use visual width for scaling: if page rotated 90/270, swap width/height
@@ -564,35 +368,6 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
     # Последний резерв: просто слить (лучше так, чем упасть)
     page.merge_page(stamp)
 
-def insert_text_to_pdf(pdf_path, text, save_as_new, prefix):
-    reader = PdfReader(pdf_path)
-    writer = PdfWriter()
-    # Новая реализация: небольшой штамп без прозрачности, точное позиционирование
-    for page in reader.pages:
-        # Ленивая загрузка вспомогательных функций, если добавлены ниже
-        try:
-            _merge_stamp_top_right
-        except NameError:
-            pass
-        else:
-            _merge_stamp(page, text, margin=12.0)
-            writer.add_page(page)
-            continue
-
-        # Fallback на старый метод (если вспомогательные функции не определены)
-        rotation = page.get('/Rotate', 0)
-        overlay = create_overlay(
-            text,
-            float(page.mediabox.width),
-            float(page.mediabox.height),
-            rotation
-        )
-        page.merge_page(overlay)
-        writer.add_page(page)
-    output_path = pdf_path if not save_as_new else os.path.join(os.path.dirname(pdf_path), f"{prefix}_{os.path.basename(pdf_path)}")
-    with open(output_path, "wb") as f:
-        writer.write(f)
-
 def insert_text_to_pdf_safe(pdf_path, text, save_as_new, prefix):
     reader = PdfReader(pdf_path)
     writer = PdfWriter()
@@ -602,6 +377,10 @@ def insert_text_to_pdf_safe(pdf_path, text, save_as_new, prefix):
     output_path = pdf_path if not save_as_new else os.path.join(os.path.dirname(pdf_path), f"{prefix}_{os.path.basename(pdf_path)}")
     with open(output_path, "wb") as f:
         writer.write(f)
+
+# --- Override legacy API to ensure safe stamping only ---
+def insert_text_to_pdf(pdf_path, text, save_as_new, prefix):
+    return insert_text_to_pdf_safe(pdf_path, text, save_as_new, prefix)
 
 # === ЛОГИКА ===
 def process_pdfs(save_as_new):
@@ -1047,4 +826,5 @@ current_req_height = root.winfo_reqheight()
 root.geometry(f"{desired_width}x{current_req_height}")
 
 root.mainloop()
+
 
