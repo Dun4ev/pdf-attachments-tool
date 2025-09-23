@@ -810,7 +810,7 @@ def create_merged_pdf_from_folder():
         
         # --- ИЗМЕНЕНИЕ: Ограничение длины имени файла для штампа ---
         # Вы можете изменить значение 30, чтобы подобрать нужную длину.
-        FILENAME_CHAR_LIMIT = 30
+        FILENAME_CHAR_LIMIT = 35
         if len(bookmark_name) > FILENAME_CHAR_LIMIT:
             truncated_name = bookmark_name[:FILENAME_CHAR_LIMIT] + "..."
         else:
