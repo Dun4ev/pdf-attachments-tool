@@ -795,18 +795,32 @@ def create_merged_pdf_from_folder():
         formatted_seq_num = f"{seq_num:02d}"
         new_number_str = f"{prefix_str}{formatted_seq_num}"
         bookmark_name = os.path.splitext(filename)[0]
-        stamp_text = f"{new_number_str} - {bookmark_name}"
+        # Полное имя для закладки (TOC)
+        title_for_toc = f"{new_number_str} - {bookmark_name}"
+        
+        # --- ИЗМЕНЕНИЕ: Ограничение длины имени файла для штампа ---
+        # Вы можете изменить значение 30, чтобы подобрать нужную длину.
+        FILENAME_CHAR_LIMIT = 35
+        if len(bookmark_name) > FILENAME_CHAR_LIMIT:
+            truncated_name = bookmark_name[:FILENAME_CHAR_LIMIT] + "..."
+        else:
+            truncated_name = bookmark_name
+        # Укороченное имя для штампа на странице
+        stamp_text_for_page = f"{new_number_str} - {truncated_name}"
+        # --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
         temp_pdf = os.path.join(folder_path, f"__temp_att_{i+1}_{filename}")
         try:
             toc_entry = extract_toc(path) if extract_toc is not None else None
             if toc_entry:
-                attachments_data.append({"title": stamp_text, "toc": toc_entry})
+                # Используем ПОЛНОЕ имя для закладки
+                attachments_data.append({"title": title_for_toc, "toc": toc_entry})
 
             reader = PdfReader(path)
             writer = PdfWriter()
             for page in reader.pages:
-                _merge_stamp(page, stamp_text, margin=12.0)
+                # Используем УКОРОЧЕННОЕ имя для штампа
+                _merge_stamp(page, stamp_text_for_page, margin=12.0)
                 writer.add_page(page)
             with open(temp_pdf, "wb") as f:
                 writer.write(f)
