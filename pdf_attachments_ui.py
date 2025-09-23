@@ -100,7 +100,7 @@ ENTRY_FG = "#333333"
 FONT = ("Segoe UI", 10)
 
 root = tk.Tk()
-root.title("PDF Приложения")
+root.title("PDF Приложения v5.0")
 # Установка иконки
 try:
     # Иконка теперь ищется в папке assets
