@@ -795,7 +795,7 @@ def create_merged_pdf_from_folder():
         formatted_seq_num = f"{seq_num:02d}"
         new_number_str = f"{prefix_str}{formatted_seq_num}"
         bookmark_name = os.path.splitext(filename)[0]
-        stamp_text = f"Prilog {new_number_str} - {bookmark_name}"
+        stamp_text = f"{new_number_str} - {bookmark_name}"
 
         temp_pdf = os.path.join(folder_path, f"__temp_att_{i+1}_{filename}")
         try:
@@ -974,7 +974,7 @@ pdf_report_label.pack(fill='x', pady=(1, 0))
 
 
 # --- Блок 2: Приложения (Ручной режим) ---
-manual_apps_frame = tk.LabelFrame(root, text="Блок 2: Приложения (Ручной режим)", bg=BG_COLOR, fg="#222", font=("Segoe UI", 10, "bold"))
+manual_apps_frame = tk.LabelFrame(root, text="Блок 2: Приложения", bg=BG_COLOR, fg="#222", font=("Segoe UI", 10, "bold"))
 manual_apps_frame.pack(padx=20, pady=5, fill='x')
 
 # --- Создаем главный фрейм, который разделим на две колонки ---
@@ -1022,10 +1022,10 @@ note_label.pack(pady=(10, 0))
 
 # Кнопка для ручного режима (под левой колонкой)
 manual_merge_action_frame = tk.Frame(manual_apps_frame, bg=BG_COLOR)
-manual_merge_action_frame.pack(pady=10)
+manual_merge_action_frame.pack(pady=10, anchor='w', padx=10)
 
 merge_btn = tk.Button(manual_merge_action_frame, 
-                     text="📚 Создать общий PDF (из ручных слотов)",
+                     text="📚 Создать общий PDF из Блок 1 (Отчет) + Блок 2",
                      command=create_merged_pdf,
                      relief="flat",
                      bg="#4CAF50",
@@ -1033,13 +1033,13 @@ merge_btn = tk.Button(manual_merge_action_frame,
                      activebackground="#45a049")
 merge_btn.pack(side='left')
 
-note_merge_btn = tk.Label(manual_merge_action_frame, text="Создает общий PDF из отчета (Блок 1) и 6 слотов выше.", 
+note_merge_btn = tk.Label(manual_merge_action_frame, text="Создает общий PDF из отчета (Блок 1) и 6 слотов Приложений выше (Блок 2).", 
                      bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
 note_merge_btn.pack(side='left', padx=(10, 0))
 
 
 # --- Блок 3: Приложения из папки (Автоматический режим) ---
-folder_apps_frame = tk.LabelFrame(root, text="Блок 3: Приложения из папки (Автоматический режим)", bg=BG_COLOR, fg="#222", font=("Segoe UI", 10, "bold"))
+folder_apps_frame = tk.LabelFrame(root, text="Блок 3: Приложения из папки", bg=BG_COLOR, fg="#222", font=("Segoe UI", 10, "bold"))
 folder_apps_frame.pack(padx=20, pady=10, fill='x')
 
 # --- Верхняя часть блока 3 с выбором папки и стартовым номером ---
@@ -1049,7 +1049,7 @@ top_folder_frame.pack(padx=10, pady=10, fill='x')
 folder_select_frame = tk.Frame(top_folder_frame, bg=BG_COLOR)
 folder_select_frame.pack(side='left', fill='x', expand=True)
 
-folder_btn = tk.Button(folder_select_frame, text="📂 Выбрать папку для слияния", command=select_folder_for_merge, bg=BTN_COLOR, relief="flat")
+folder_btn = tk.Button(folder_select_frame, text="📂 Выбрать папку с Приложениями", command=select_folder_for_merge, bg=BTN_COLOR, relief="flat")
 folder_btn.pack(side='left', padx=(0, 10))
 
 folder_for_merge_label = tk.Label(folder_select_frame, text="Папка не выбрана", anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 9))
@@ -1059,9 +1059,9 @@ folder_for_merge_label.pack(side='left')
 prefix_num_frame = tk.Frame(top_folder_frame, bg=BG_COLOR)
 prefix_num_frame.pack(side='left', padx=(20, 0))
 
-tk.Label(prefix_num_frame, text="Префикс номера:", bg=BG_COLOR).pack(side='left')
-prefix_number_entry = tk.Entry(prefix_num_frame, width=8, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
-prefix_number_entry.insert(0, "7.")
+tk.Label(prefix_num_frame, text="Префикс нумерации:", bg=BG_COLOR).pack(side='left')
+prefix_number_entry = tk.Entry(prefix_num_frame, width=9, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
+prefix_number_entry.insert(0, "Prilog 7.")
 prefix_number_entry.pack(side='left', padx=5)
 # --- Конец нового виджета ---
 
@@ -1070,7 +1070,7 @@ start_num_frame = tk.Frame(top_folder_frame, bg=BG_COLOR)
 start_num_frame.pack(side='right', padx=(20, 0))
 
 tk.Label(start_num_frame, text="Начать нумерацию с:", bg=BG_COLOR).pack(side='left')
-start_number_entry = tk.Spinbox(start_num_frame, from_=1, to=999, width=5, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
+start_number_entry = tk.Spinbox(start_num_frame, from_=1, to=999, width=4, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
 start_number_entry.insert(0, "1")
 start_number_entry.pack(side='left', padx=5)
 # --- Конец нового виджета ---
@@ -1080,7 +1080,7 @@ folder_merge_action_frame = tk.Frame(folder_apps_frame, bg=BG_COLOR)
 folder_merge_action_frame.pack(pady=10, anchor='w', padx=10)
 
 folder_merge_btn = tk.Button(folder_merge_action_frame,
-                             text="🗂️ Создать PDF из папки",
+                             text="🗂️ Создать общий PDF из Блок 1 (Отчет) + Блок 3",
                              command=create_merged_pdf_from_folder,
                              relief="flat",
                              bg="#FF9800",
@@ -1100,7 +1100,7 @@ separator.pack(fill='x', padx=20, pady=(10, 5))
 
 # Кнопка сброса
 reset_action_frame = tk.Frame(root, bg=BG_COLOR)
-reset_action_frame.pack(pady=10)
+reset_action_frame.pack(pady=10, anchor='w', padx=30)
 
 reset_btn = tk.Button(reset_action_frame, text="🔄 Сброс/Вернуть по умолчанию", 
          command=reset_fields, bg=BTN_COLOR, relief="flat")
