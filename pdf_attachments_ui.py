@@ -716,14 +716,17 @@ def create_merged_pdf_from_folder():
     folder_path = folder_for_merge_path[0]
     # --------------------------------------------------------
 
-    # --- Новая логика: получаем стартовый номер ---
+    # --- Новая логика: получаем префикс и стартовый номер ---
+    try:
+        prefix_str = prefix_number_entry.get().strip()
+    except (ValueError, NameError):
+        prefix_str = ""
     try:
         start_num = int(start_number_entry.get())
     except (ValueError, NameError):
         start_num = 1
-    # -----------------------------------------
+    # ----------------------------------------------------
 
-    # This function is a modification of create_merged_pdf
     temp_files = []
     merged_writer = PdfWriter()
     report_toc = None
@@ -731,7 +734,6 @@ def create_merged_pdf_from_folder():
     
     main_report_path = None
     base_name_for_save = "merged"
-    has_report = False
 
     # 1. Определяем основной отчет (PDF или Word)
     if pdf_report_file_path[0]:
@@ -742,7 +744,6 @@ def create_merged_pdf_from_folder():
         try:
             shutil.copy(main_report_path, temp_main_pdf)
             temp_files.append(temp_main_pdf)
-            has_report = True
             if extract_toc is not None:
                 try:
                     report_toc = extract_toc(main_report_path)
@@ -759,25 +760,21 @@ def create_merged_pdf_from_folder():
             convert(main_report_path, word_pdf_path)
             if os.path.exists(word_pdf_path):
                 temp_files.append(word_pdf_path)
+                if extract_toc is not None:
+                    report_toc = extract_toc(word_pdf_path)
             else:
                 status_var.set("❌ Ошибка: PDF из Word не был создан")
                 return
         except Exception as e:
             if "Word.Application.Quit" in str(e) and os.path.exists(word_pdf_path):
                 temp_files.append(word_pdf_path)
+                if extract_toc is not None:
+                    report_toc = extract_toc(word_pdf_path)
             else:
                 status_var.set(f"❌ Ошибка при конвертации Word: {e}")
                 return
-    
-    try:
-        if report_toc is None and 'word_pdf_path' in locals() and os.path.exists(word_pdf_path) and extract_toc is not None:
-            report_toc = extract_toc(word_pdf_path)
-    except Exception as e:
-        logging.warning("Не удалось извлечь TOC из PDF (Word-конверсия, post): %s", e)
 
-    # --- NEW LOGIC STARTS HERE ---
-    # 2. Выбор папки с приложениями - ТЕПЕРЬ ВНЕ ФУНКЦИИ
-
+    # 2. Обработка приложений из папки
     try:
         pdf_files = sorted([f for f in os.listdir(folder_path) if f.lower().endswith('.pdf')])
     except Exception as e:
@@ -791,28 +788,21 @@ def create_merged_pdf_from_folder():
     status_var.set(f"Найдено {len(pdf_files)} PDF-файлов. Идет обработка...")
     root.update_idletasks()
 
-    # 3. Обработка приложений из папки
-    pdf_temp_paths = []
     for i, filename in enumerate(pdf_files):
         path = os.path.join(folder_path, filename)
-        # Текст для штампа - имя файла без расширения
-        stamp_text = os.path.splitext(filename)[0]
+        
+        seq_num = start_num + i
+        formatted_seq_num = f"{seq_num:02d}"
+        new_number_str = f"{prefix_str}{formatted_seq_num}"
+        bookmark_name = os.path.splitext(filename)[0]
+        stamp_text = f"Prilog {new_number_str} - {bookmark_name}"
+
         temp_pdf = os.path.join(folder_path, f"__temp_att_{i+1}_{filename}")
-
         try:
-            # Извлечение TOC из оригинального файла
-            toc_entry = None
-            if extract_toc is not None:
-                try:
-                    toc_entry = extract_toc(path)
-                except Exception as e:
-                    logging.warning("Не удалось извлечь TOC приложения (%s): %s", filename, e)
-            
-            # --- Изменение: используем стартовый номер ---
+            toc_entry = extract_toc(path) if extract_toc is not None else None
             if toc_entry:
-                attachments_data.append({"index": start_num + i, "toc": toc_entry, "name": stamp_text})
+                attachments_data.append({"title": stamp_text, "toc": toc_entry})
 
-            # Создание временного PDF со штампом
             reader = PdfReader(path)
             writer = PdfWriter()
             for page in reader.pages:
@@ -820,33 +810,22 @@ def create_merged_pdf_from_folder():
                 writer.add_page(page)
             with open(temp_pdf, "wb") as f:
                 writer.write(f)
-            pdf_temp_paths.append(temp_pdf)
-
+            temp_files.append(temp_pdf)
         except Exception as e:
             status_var.set(f"❌ Ошибка при обработке файла: {filename}\\n{e}")
-            # Cleanup
-            for f in temp_files + pdf_temp_paths:
+            for f in temp_files:
                 if os.path.exists(f): os.remove(f)
             return
-    
-    temp_files.extend(pdf_temp_paths)
-    # --- NEW LOGIC ENDS ---
 
-    if not temp_files:
-        status_var.set("⚠ Не выбран ни один файл для объединения.")
-        return
-
-    # 4. Объединяем все PDF
+    # 3. Объединение PDF
     try:
         for pdf_path in temp_files:
-            reader = PdfReader(pdf_path)
-            for page in reader.pages:
-                merged_writer.add_page(page)
+            merged_writer.append(pdf_path)
         
         merged_path = filedialog.asksaveasfilename(
             defaultextension=".pdf",
             filetypes=[("PDF files", "*.pdf")],
-            initialfile=f"{base_name_for_save}_All_from_folder.pdf", # Changed initial name
+            initialfile=f"{base_name_for_save}_All_from_folder.pdf",
             title="Сохранить объединённый PDF"
         )
         if merged_path:
@@ -855,15 +834,31 @@ def create_merged_pdf_from_folder():
             last_merged_pdf_path[0] = merged_path
             status_var.set(f"✅ Общий PDF создан: {os.path.basename(merged_path)}")
             create_pdf_link(merged_path)
-            # Применяем TOC
+
+            # 4. РУЧНАЯ СБОРКА ОГЛАВЛЕНИЯ (TOC)
             try:
-                if apply_toc is not None and compose_multi_attachment_toc is not None and SourceToc is not None:
-                    rep = report_toc if report_toc is not None else SourceToc(entries=[], pages=0)
-                    final_toc = compose_multi_attachment_toc(rep, attachments_data, report_title="Izvestaj", attachment_prefix="Prilog")
+                if apply_toc is not None and SourceToc is not None:
+                    final_toc = []
+                    offset = 0
+                    # Отчет
+                    if report_toc and report_toc.pages > 0:
+                        final_toc.append((1, "Izvestaj", 1))
+                        for lvl, title, page in report_toc.entries:
+                            final_toc.append((max(2, int(lvl) + 1), str(title), max(1, int(page))))
+                        offset = report_toc.pages
+                    
+                    # Приложения
+                    for data in attachments_data:
+                        att_title = data["title"]
+                        att_toc = data["toc"]
+                        final_toc.append((1, att_title, max(1, offset + 1)))
+                        if att_toc:
+                            for lvl, title, page in att_toc.entries:
+                                final_toc.append((max(2, int(lvl) + 1), str(title), max(1, int(page) + offset)))
+                            offset += att_toc.pages
+
                     apply_toc(merged_path, final_toc)
-                    logging.info("TOC применён: Izvestaj/Prilog, записей: %d", len(final_toc))
-                else:
-                    logging.info("Пропуск применения TOC: модуль bookmarks/PyMuPDF недоступен")
+                    logging.info("TOC применён (ручная сборка): Izvestaj/Prilog, записей: %d", len(final_toc))
             except Exception as e:
                 logging.warning("Не удалось применить TOC к итоговому PDF: %s", e)
         else:
@@ -1060,19 +1055,29 @@ folder_btn.pack(side='left', padx=(0, 10))
 folder_for_merge_label = tk.Label(folder_select_frame, text="Папка не выбрана", anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 9))
 folder_for_merge_label.pack(side='left')
 
-# --- Новый виджет для стартового номера ---
+# --- Новый виджет для префикса ---
+prefix_num_frame = tk.Frame(top_folder_frame, bg=BG_COLOR)
+prefix_num_frame.pack(side='left', padx=(20, 0))
+
+tk.Label(prefix_num_frame, text="Префикс номера:", bg=BG_COLOR).pack(side='left')
+prefix_number_entry = tk.Entry(prefix_num_frame, width=8, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
+prefix_number_entry.insert(0, "7.")
+prefix_number_entry.pack(side='left', padx=5)
+# --- Конец нового виджета ---
+
+# --- Виджет для стартового номера ---
 start_num_frame = tk.Frame(top_folder_frame, bg=BG_COLOR)
 start_num_frame.pack(side='right', padx=(20, 0))
 
 tk.Label(start_num_frame, text="Начать нумерацию с:", bg=BG_COLOR).pack(side='left')
-start_number_entry = tk.Entry(start_num_frame, width=5, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
+start_number_entry = tk.Spinbox(start_num_frame, from_=1, to=999, width=5, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
 start_number_entry.insert(0, "1")
 start_number_entry.pack(side='left', padx=5)
 # --- Конец нового виджета ---
 
 # Кнопка для режима из папки
 folder_merge_action_frame = tk.Frame(folder_apps_frame, bg=BG_COLOR)
-folder_merge_action_frame.pack(pady=10)
+folder_merge_action_frame.pack(pady=10, anchor='w', padx=10)
 
 folder_merge_btn = tk.Button(folder_merge_action_frame,
                              text="🗂️ Создать PDF из папки",
