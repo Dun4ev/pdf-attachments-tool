@@ -65,17 +65,17 @@ import logging
 # пытаются что-то напечатать.
 # Код с ctypes для скрытия окна был удален, так как это делается
 # с помощью флага --windowed при сборке PyInstaller.
-if getattr(sys, 'frozen', False) and (sys.stdout is None or sys.stderr is None):
+if getattr(sys, "frozen", False) and (sys.stdout is None or sys.stderr is None):
     exe_dir = os.path.dirname(sys.executable)
-    log_path = os.path.join(exe_dir, 'pdf_attachments_ui.log')
-    log_file = open(log_path, 'a', encoding='utf-8', buffering=1)
+    log_path = os.path.join(exe_dir, "pdf_attachments_ui.log")
+    log_file = open(log_path, "a", encoding="utf-8", buffering=1)
     sys.stdout = log_file
     sys.stderr = log_file
 
 # Also initialize logging for both frozen and non-frozen runs
 try:
-    _base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.abspath('.')
-    LOG_PATH = os.path.join(_base_dir, 'pdf_attachments_ui.log')
+    _base_dir = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.abspath(".")
+    LOG_PATH = os.path.join(_base_dir, "pdf_attachments_ui.log")
     logging.basicConfig(filename=LOG_PATH, level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s', encoding='utf-8')
     logging.info('Logger initialized')
 except Exception:
@@ -119,6 +119,7 @@ file_paths = [None]*6
 
 # Добавить в начало файла после других глобальных переменных
 last_merged_pdf_path = [None]
+folder_for_merge_path = [None] # <-- НОВАЯ ПЕРЕМЕННАЯ
 
 # === РЕГИСТРАЦИЯ ШРИФТА ===
 def register_font():
@@ -144,6 +145,34 @@ def register_font():
     return font_name
 
 FONT_USED = register_font()
+
+# === НОВЫЕ ФУНКЦИИ ДЛЯ РЕЖИМА "ИЗ ПАПКИ" ===
+
+def clear_individual_attachments():
+    """Очищает все 6 слотов для ручного выбора приложений."""
+    for i in range(6):
+        default_text = f"Prilog / Приложение 7.0{i+1}"
+        entries[i].delete(0, tk.END)
+        entries[i].insert(0, default_text)
+        file_paths[i] = None
+        file_labels[i].config(text="Файл не выбран")
+
+def clear_folder_for_merge():
+    """Очищает выбор папки для слияния."""
+    folder_for_merge_path[0] = None
+    if 'folder_for_merge_label' in globals():
+        folder_for_merge_label.config(text="Папка не выбрана")
+
+def select_folder_for_merge():
+    """Выбирает папку для слияния, очищая при этом ручные слоты."""
+    path = filedialog.askdirectory(title="Выберите папку с PDF-приложениями")
+    if path:
+        folder_for_merge_path[0] = path
+        if 'folder_for_merge_label' in globals():
+            folder_for_merge_label.config(text=os.path.basename(path))
+        clear_individual_attachments()
+        status_var.set(f"🗂️ Выбрана папка для слияния: {os.path.basename(path)}")
+
 
 # === PDF ОБРАБОТКА ===
 
@@ -249,7 +278,7 @@ def _anchor_and_angle(page, margin: float = 12.0):
             alignment = 'bottom-right'
             ax, ay = urx - margin, lly + margin
         else:
-            # Стандартные случаи для книжной оритации
+            # Стандартные случаи для книжной ориентации
             alignment = 'top-right'
             if rotation == 0:
                 ax, ay = urx - margin, ury - margin
@@ -438,7 +467,7 @@ def process_pdfs(save_as_new):
                 insert_text_to_pdf_safe(path, text, save_as_new, prefix)
             except Exception as e:
                 any_error = True
-                messagebox.showerror("Ошибка", f"Ошибка при обработке {path}:\n{e}")
+                messagebox.showerror("Ошибка", f"Ошибка при обработке {path}:\\n{e}")
                 status_var.set(f"❌ Ошибка при обработке: {os.path.basename(path)}")
     if not any_error:
         status_var.set("✅ PDF-файлы Приложения успешно обработаны.")
@@ -448,14 +477,10 @@ def select_file(index):
     if path:
         file_paths[index] = path
         file_labels[index].config(text=os.path.basename(path))
+        clear_folder_for_merge() # <-- ВЗАИМНОЕ ИСКЛЮЧЕНИЕ
 
 def reset_fields():
-    for i in range(6):
-        default_text = f"Prilog / Приложение 7.0{i+1}"
-        entries[i].delete(0, tk.END)
-        entries[i].insert(0, default_text)
-        file_paths[i] = None
-        file_labels[i].config(text="Файл не выбран")
+    clear_individual_attachments()
     word_entry.delete(0, tk.END)
     word_entry.insert(0, "Izveštaj_Отчет")
     word_file_path[0] = None
@@ -470,6 +495,7 @@ def reset_fields():
     if hasattr(root, 'pdf_link_label'):
         root.pdf_link_label.destroy()
     
+    clear_folder_for_merge() # <-- СБРОС ВЫБОРА ПАПКИ
     status_var.set("🔄 Поля сброшены по умолчанию.")
 
 # === Word & PDF Отчеты ===
@@ -627,7 +653,7 @@ def create_merged_pdf():
                     writer.write(f)
                 pdf_temp_paths.append(temp_pdf)
             except Exception as e:
-                status_var.set(f"❌ Ошибка при обработке PDF: {os.path.basename(path)}\n{e}")
+                status_var.set(f"❌ Ошибка при обработке PDF: {os.path.basename(path)}\\n{e}")
                 for f in temp_files + pdf_temp_paths: # Очистка всех временных файлов
                     if os.path.exists(f): os.remove(f)
                 return
@@ -677,11 +703,19 @@ def create_merged_pdf():
     finally:
         # 4. Удаляем все временные файлы
         for f in temp_files:
-            if os.path.exists(f):
-                os.remove(f)
+            if os.path.exists(f): os.remove(f)
 
 
 def create_merged_pdf_from_folder():
+    # --- ИЗМЕНЕНИЕ: Логика выбора папки вынесена наружу ---
+    if not folder_for_merge_path[0]:
+        status_var.set("❌ Сначала выберите папку с приложениями!")
+        messagebox.showerror("Ошибка", "Папка с PDF-приложениями не выбрана.")
+        return
+
+    folder_path = folder_for_merge_path[0]
+    # --------------------------------------------------------
+
     # This function is a modification of create_merged_pdf
     temp_files = []
     merged_writer = PdfWriter()
@@ -735,11 +769,7 @@ def create_merged_pdf_from_folder():
         logging.warning("Не удалось извлечь TOC из PDF (Word-конверсия, post): %s", e)
 
     # --- NEW LOGIC STARTS HERE ---
-    # 2. Выбор папки с приложениями
-    folder_path = filedialog.askdirectory(title="Выберите папку с PDF-приложениями")
-    if not folder_path:
-        status_var.set("Операция отменена.")
-        return
+    # 2. Выбор папки с приложениями - ТЕПЕРЬ ВНЕ ФУНКЦИИ
 
     try:
         pdf_files = sorted([f for f in os.listdir(folder_path) if f.lower().endswith('.pdf')])
@@ -785,7 +815,7 @@ def create_merged_pdf_from_folder():
             pdf_temp_paths.append(temp_pdf)
 
         except Exception as e:
-            status_var.set(f"❌ Ошибка при обработке файла: {filename}\n{e}")
+            status_var.set(f"❌ Ошибка при обработке файла: {filename}\\n{e}")
             # Cleanup
             for f in temp_files + pdf_temp_paths:
                 if os.path.exists(f): os.remove(f)
@@ -835,8 +865,7 @@ def create_merged_pdf_from_folder():
     finally:
         # 5. Удаляем все временные файлы
         for f in temp_files:
-            if os.path.exists(f):
-                os.remove(f)
+            if os.path.exists(f): os.remove(f)
 
 
 def create_pdf_link(pdf_path):
@@ -892,16 +921,20 @@ def create_pdf_link(pdf_path):
     folder_link_label.pack(side='right', padx=(10, 0)) # Pack right in the new frame, add padding to the left
 
 # === UI ===
-# --- Блок для Word-файла ---
-word_frame = tk.Frame(root, bg=BG_COLOR)
-word_frame.pack(padx=20, pady=(15, 0), fill='x')
 
-# Создаем вложенный фрейм для верхней строки
+# --- Блок 1: Основной отчет ---
+report_frame = tk.LabelFrame(root, text="Блок 1: Основной отчет", bg=BG_COLOR, fg="#222", font=("Segoe UI", 10, "bold"))
+report_frame.pack(padx=20, pady=10, fill='x')
+
+# --- Виджеты для Word-файла ---
+word_frame = tk.Frame(report_frame, bg=BG_COLOR)
+word_frame.pack(padx=10, pady=(5,10), fill='x')
+
 top_row = tk.Frame(word_frame, bg=BG_COLOR)
 top_row.pack(fill='x')
 
 word_entry = tk.Entry(top_row, width=40, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
-word_entry.insert(0, "Izveštaj_Отчет")  # значение по умолчанию
+word_entry.insert(0, "Izveštaj_Отчет")
 word_entry.pack(side='left', padx=(0, 10))
 
 word_btn = tk.Button(top_row, text="📄 Выбрать Word (.docx)", command=select_word_file, bg=BTN_COLOR, relief="flat")
@@ -912,18 +945,16 @@ word_convert_btn = tk.Button(top_row, text="➡️ Создать PDF из word"
                           width=30)
 word_convert_btn.pack(side='right', padx=20)
 
-# Добавляем текст-подсказку под кнопкой
 word_convert_note = tk.Label(word_frame, text="Создает PDF из docx файла без приложений", 
                            anchor='e', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
 word_convert_note.pack(side='right', padx=20, pady=(1, 0))
 
-# Создаем отдельную строку для метки файла
 word_file_label = tk.Label(word_frame, text="Файл не выбран", anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
-word_file_label.pack(fill='x', padx=(0, 10), pady=(1, 0))
+word_file_label.pack(fill='x', pady=(1, 0))
 
-# --- Блок для PDF-отчета ---
-pdf_report_frame = tk.Frame(root, bg=BG_COLOR)
-pdf_report_frame.pack(padx=20, pady=(10, 0), fill='x')
+# --- Виджеты для PDF-отчета ---
+pdf_report_frame = tk.Frame(report_frame, bg=BG_COLOR)
+pdf_report_frame.pack(padx=10, pady=(5,10), fill='x')
 
 pdf_report_top_row = tk.Frame(pdf_report_frame, bg=BG_COLOR)
 pdf_report_top_row.pack(fill='x')
@@ -936,50 +967,27 @@ pdf_report_btn = tk.Button(pdf_report_top_row, text="📄 Выбрать PDF (.p
 pdf_report_btn.pack(side='left', padx=(0, 10))
 
 pdf_report_label = tk.Label(pdf_report_frame, text="Файл не выбран", anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 8))
-pdf_report_label.pack(fill='x', padx=(0, 10), pady=(1, 0))
+pdf_report_label.pack(fill='x', pady=(1, 0))
 
 
-# После блока word_convert_btn добавьте:
+# --- Блок 2: Приложения (Ручной режим) ---
+manual_apps_frame = tk.LabelFrame(root, text="Блок 2: Приложения (Ручной режим)", bg=BG_COLOR, fg="#222", font=("Segoe UI", 10, "bold"))
+manual_apps_frame.pack(padx=20, pady=5, fill='x')
 
-# Добавить определение actions_frame перед использованием
-actions_frame = tk.Frame(root, bg=BG_COLOR)
-actions_frame.pack(padx=20, pady=5, fill='x')
+# --- Создаем главный фрейм, который разделим на две колонки ---
+main_manual_frame = tk.Frame(manual_apps_frame, bg=BG_COLOR)
+main_manual_frame.pack(padx=10, pady=5, fill='x')
 
-# Разделительная линия
-separator = tk.Frame(root, height=2, bg="#e0e0e0")
-separator.pack(fill='x', padx=20, pady=(5, 10))
+left_col_frame = tk.Frame(main_manual_frame, bg=BG_COLOR)
+left_col_frame.pack(side='left', fill='y', expand=True)
 
-# --- Блок для PDF-файлов ---
-apps_frame = tk.LabelFrame(root, text="Приложения", bg=BG_COLOR, fg="#222", font=("Segoe UI", 10, "bold"))
-apps_frame.pack(padx=20, pady=(0, 6), fill='x')
+right_col_frame = tk.Frame(main_manual_frame, bg=BG_COLOR)
+right_col_frame.pack(side='right', fill='y', padx=(20, 5))
 
-# Создаем фрейм для кнопок сохранения справа
-save_btn_frame = tk.Frame(apps_frame, bg=BG_COLOR)
-save_btn_frame.pack(side='right', padx=10, pady=6)
-
-# Кнопки сохранения
-btn_style = {"width": 30, "bg": BTN_COLOR, "activebackground": "#d5d5d5", "relief": "flat"}
-tk.Button(save_btn_frame, text="💾 Сохранить в тот же файл PDF", 
-         command=lambda: process_pdfs(False), **btn_style).pack(pady=3)
-tk.Button(save_btn_frame, text="📝 Сохранить с переименованием", 
-         command=lambda: process_pdfs(True), **btn_style).pack(pady=3)
-
-# Добавляем примечание под кнопками
-note_text = (
-    "💾 Сохранить в тот же файл PDF – заменяет оригинал PDF.\n"
-    "📝 Сохранить с переименованием – создаёт копию pdf с 'att.X_...'\n"
-    "\n"
-    "Текст ""(Prilog / Приложение 7.0i)"" в PDF файле будет добавлен в правом верхнем углу покороткой стороне страницы.\n"
-    "Каждое прилжение сохранится отдельно.\n"
-)
-note_label = tk.Label(save_btn_frame, text=note_text, justify='left', wraplength=220, 
-                     bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
-note_label.pack(pady=(5, 0))
-
-# Фрейм для полей ввода и выбора файлов
+# Фрейм для полей ввода и выбора файлов (в левой колонке)
 for i in range(6):
-    frame = tk.Frame(apps_frame, bg=BG_COLOR)
-    frame.pack(padx=20, pady=6, fill='x')
+    frame = tk.Frame(left_col_frame, bg=BG_COLOR)
+    frame.pack(padx=10, pady=6, fill='x')
     entry = tk.Entry(frame, width=35, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
     entry.insert(0, f"Prilog / Приложение 7.0{i+1}")
     entry.pack(side='left', padx=(0, 10))
@@ -990,52 +998,74 @@ for i in range(6):
     label.pack(side='left')
     file_labels.append(label)
 
-# Разделительная линия
-separator = tk.Frame(root, height=2, bg="#e0e0e0")
-separator.pack(fill='x', padx=20, pady=(10, 5))
+# --- ВОССТАНОВЛЕННЫЙ БЛОК --- 
+# Кнопки для индивидуальной обработки (в правой колонке)
+btn_style = {"width": 30, "bg": BTN_COLOR, "activebackground": "#d5d5d5", "relief": "flat"}
+tk.Button(right_col_frame, text="💾 Сохранить в тот же файл PDF", 
+         command=lambda: process_pdfs(False), **btn_style).pack(pady=3)
+tk.Button(right_col_frame, text="📝 Сохранить с переименованием", 
+         command=lambda: process_pdfs(True), **btn_style).pack(pady=3)
 
-# Нижние кнопки
-bottom_btn_frame = tk.Frame(root, bg=BG_COLOR)
-bottom_btn_frame.pack(padx=20, pady=10, fill='x')
+note_text = (
+    "💾 Сохранить в тот же файл – заменяет оригинал PDF.\n"
+    "📝 Сохранить с переименованием – создаёт копию pdf с префиксом 'att.X_...'\n\n"
+    "Эти кнопки обрабатывают каждый файл индивидуально, \n"
+    "но НЕ объединяют их в общий PDF."
+)
+note_label = tk.Label(right_col_frame, text=note_text, justify='left', wraplength=220, 
+                     bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
+note_label.pack(pady=(10, 0))
+# --- КОНЕЦ ВОССТАНОВЛЕННОГО БЛОКА ---
 
-bottom_btn_style = {"bg": BTN_COLOR, "activebackground": "#d5d5d5", "relief": "flat", "width": 30}
-
-# Создаем вертикальный фрейм для кнопок
-buttons_frame = tk.Frame(bottom_btn_frame, bg=BG_COLOR)
-buttons_frame.pack(side='left', padx=5)
-
-# Размещаем кнопки вертикально
-tk.Button(buttons_frame, text="🔄 Сброс/Вернуть по умолчанию", 
-         command=reset_fields, **bottom_btn_style).pack(pady=(0,5))
-merge_btn = tk.Button(buttons_frame, 
-                     text="📚 Создать общий PDF",
+# Кнопка для ручного режима (под левой колонкой)
+merge_btn = tk.Button(manual_apps_frame, 
+                     text="📚 Создать общий PDF (из ручных слотов)",
                      command=create_merged_pdf,
-                     width=30,
                      relief="flat",
                      bg="#4CAF50",
                      fg="white",
                      activebackground="#45a049")
-merge_btn.pack()
+merge_btn.pack(pady=10)
 
-folder_merge_btn = tk.Button(buttons_frame,
+note_merge_btn = tk.Label(manual_apps_frame, text="Создает общий PDF из отчета (Блок 1) и 6 слотов выше.", 
+                     bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
+note_merge_btn.pack(pady=(0, 5))
+
+
+# --- Блок 3: Приложения из папки (Автоматический режим) ---
+folder_apps_frame = tk.LabelFrame(root, text="Блок 3: Приложения из папки (Автоматический режим)", bg=BG_COLOR, fg="#222", font=("Segoe UI", 10, "bold"))
+folder_apps_frame.pack(padx=20, pady=10, fill='x')
+
+folder_select_frame = tk.Frame(folder_apps_frame, bg=BG_COLOR)
+folder_select_frame.pack(padx=10, pady=10, fill='x')
+
+folder_btn = tk.Button(folder_select_frame, text="📂 Выбрать папку для слияния", command=select_folder_for_merge, bg=BTN_COLOR, relief="flat")
+folder_btn.pack(side='left', padx=(0, 10))
+
+folder_for_merge_label = tk.Label(folder_select_frame, text="Папка не выбрана", anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 9))
+folder_for_merge_label.pack(side='left')
+
+# Кнопка для режима из папки
+folder_merge_btn = tk.Button(folder_apps_frame,
                              text="🗂️ Создать PDF из папки",
                              command=create_merged_pdf_from_folder,
-                             width=30,
                              relief="flat",
                              bg="#FF9800",
                              fg="white",
                              activebackground="#FB8C00")
-folder_merge_btn.pack(pady=(5,0))
+folder_merge_btn.pack(pady=10)
 
-# Добавляем info_text после кнопок
-info_text = (
-    "🔄 Вернуть по умолчанию – сбрасывает названия и очищает отмеченные файлы.\n"
-    "📚 Создать общий PDF – создает общий PDF из отчета и 6 слотов.\n"
-    "🗂️ Создать PDF из папки – создает общий PDF из отчета и всех PDF в папке."
-)
-info_label = tk.Label(bottom_btn_frame, text=info_text, justify='left', anchor='nw', 
-                     bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
-info_label.pack(side='left', anchor='n', padx=(20, 0))
+
+# --- Блок 4: Сброс и Статус ---
+# Разделительная линия
+separator = tk.Frame(root, height=2, bg="#e0e0e0")
+separator.pack(fill='x', padx=20, pady=(10, 5))
+
+# Кнопка сброса
+reset_btn = tk.Button(root, text="🔄 Сброс/Вернуть по умолчанию", 
+         command=reset_fields, bg=BTN_COLOR, relief="flat")
+reset_btn.pack(pady=10)
+
 
 status_var = tk.StringVar()
 # Многострочный статус с переносом слов
@@ -1086,5 +1116,3 @@ current_req_height = root.winfo_reqheight()
 root.geometry(f"{desired_width}x{current_req_height}")
 
 root.mainloop()
-
-

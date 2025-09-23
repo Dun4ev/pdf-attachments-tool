@@ -36,3 +36,10 @@
 2025-09-23 12:33:35,705 INFO TOC применён: Izvestaj/Prilog, записей: 2
 2025-09-23 18:28:04,941 INFO Logger initialized
 2025-09-23 18:28:27,758 INFO TOC применён: Izvestaj/Prilog, записей: 11
+2025-09-23 19:02:04,001 INFO Logger initialized
+2025-09-23 19:03:57,759 INFO Logger initialized
+2025-09-23 19:06:21,871 INFO Logger initialized
+2025-09-23 19:12:18,561 INFO Logger initialized
+2025-09-23 19:16:48,856 INFO TOC применён: Izvestaj/Prilog, записей: 11
+2025-09-23 19:17:34,381 WARNING Не удалось применить TOC к итоговому PDF: [WinError 5] Отказано в доступе: 'D:\\SynologyDrive\\Code_and_Scripts\\Работа_с_файлами_и_папкам\\PDF_attachments\\Test\\Test Папки с приложениями\\_toc_hfufqnqg.pdf' -> 'D:/SynologyDrive/Code_and_Scripts/Работа_с_файлами_и_папкам/PDF_attachments/Test/Test Папки с приложениями/CT-DR-B-CS-CS-II.2.11-00-6M-20250912-00_All.pdf'
+2025-09-23 19:18:23,602 INFO TOC применён: Izvestaj/Prilog, записей: 11
