@@ -716,6 +716,13 @@ def create_merged_pdf_from_folder():
     folder_path = folder_for_merge_path[0]
     # --------------------------------------------------------
 
+    # --- Новая логика: получаем стартовый номер ---
+    try:
+        start_num = int(start_number_entry.get())
+    except (ValueError, NameError):
+        start_num = 1
+    # -----------------------------------------
+
     # This function is a modification of create_merged_pdf
     temp_files = []
     merged_writer = PdfWriter()
@@ -801,8 +808,9 @@ def create_merged_pdf_from_folder():
                 except Exception as e:
                     logging.warning("Не удалось извлечь TOC приложения (%s): %s", filename, e)
             
+            # --- Изменение: используем стартовый номер ---
             if toc_entry:
-                attachments_data.append({"index": i + 1, "toc": toc_entry, "name": stamp_text})
+                attachments_data.append({"index": start_num + i, "toc": toc_entry, "name": stamp_text})
 
             # Создание временного PDF со штампом
             reader = PdfReader(path)
@@ -1039,14 +1047,28 @@ note_merge_btn.pack(side='left', padx=(10, 0))
 folder_apps_frame = tk.LabelFrame(root, text="Блок 3: Приложения из папки (Автоматический режим)", bg=BG_COLOR, fg="#222", font=("Segoe UI", 10, "bold"))
 folder_apps_frame.pack(padx=20, pady=10, fill='x')
 
-folder_select_frame = tk.Frame(folder_apps_frame, bg=BG_COLOR)
-folder_select_frame.pack(padx=10, pady=10, fill='x')
+# --- Верхняя часть блока 3 с выбором папки и стартовым номером ---
+top_folder_frame = tk.Frame(folder_apps_frame, bg=BG_COLOR)
+top_folder_frame.pack(padx=10, pady=10, fill='x')
+
+folder_select_frame = tk.Frame(top_folder_frame, bg=BG_COLOR)
+folder_select_frame.pack(side='left', fill='x', expand=True)
 
 folder_btn = tk.Button(folder_select_frame, text="📂 Выбрать папку для слияния", command=select_folder_for_merge, bg=BTN_COLOR, relief="flat")
 folder_btn.pack(side='left', padx=(0, 10))
 
 folder_for_merge_label = tk.Label(folder_select_frame, text="Папка не выбрана", anchor='w', bg=BG_COLOR, fg="#555", font=("Segoe UI", 9))
 folder_for_merge_label.pack(side='left')
+
+# --- Новый виджет для стартового номера ---
+start_num_frame = tk.Frame(top_folder_frame, bg=BG_COLOR)
+start_num_frame.pack(side='right', padx=(20, 0))
+
+tk.Label(start_num_frame, text="Начать нумерацию с:", bg=BG_COLOR).pack(side='left')
+start_number_entry = tk.Entry(start_num_frame, width=5, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
+start_number_entry.insert(0, "1")
+start_number_entry.pack(side='left', padx=5)
+# --- Конец нового виджета ---
 
 # Кнопка для режима из папки
 folder_merge_action_frame = tk.Frame(folder_apps_frame, bg=BG_COLOR)
