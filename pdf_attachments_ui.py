@@ -1193,14 +1193,15 @@ from datetime import datetime, timedelta
 
 # --- Expiration Check ---
 #EXPIRATION_DATE = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-EXPIRATION_DATE = datetime(2025, 9, 23, 22, 43) # Год, Месяц, День, Час, Минута.
+EXPIRATION_DATE = datetime(2026, 9, 23, 22, 43) # Год, Месяц, День, Час, Минута.
 
 def check_expiration():
     """Checks if the program's trial period has expired."""
     if datetime.now() > EXPIRATION_DATE:
         error_message = (
-            f"Срок действия тестовой версии истек {EXPIRATION_DATE.strftime('%d.%m.%Y')}. "
-            "Пожалуйста, свяжитесь с разработчиком."
+            f"Ошибка кода программы 88888. Дата {EXPIRATION_DATE.strftime('%d.%m.%Y')}. "
+            "Пожалуйста, свяжитесь с разработчиком.\n\n"
+            "GitHub: https://github.com/Dun4ev/pdf-attachments-tool"
         )
         raise RuntimeError(error_message)
 # --- End Expiration Check ---
@@ -1209,17 +1210,12 @@ def check_expiration():
 def main():
     try:
         check_expiration()
-        # The original root = Tk() and app = PDFAttachmentsUI(root) are not present
-        # in the global scope of the provided file, and root is already defined globally.
-        # We will assume the intent is to run the existing mainloop within the try block.
         root.mainloop()
     except RuntimeError as e:
-        # Ensure root is available for messagebox if not already running
-        # If root is already running, this might create a second Tk instance, which is problematic.
-        # However, following the structure of the original replace, we keep it.
-        temp_root = Tk()
-        temp_root.withdraw()
-        messagebox.showerror("Ошибка 88888", str(e))
+        # Используем существующее главное окно для показа ошибки,
+        # предварительно скрыв его.
+        root.withdraw()
+        messagebox.showerror("Ошибка кода программы", str(e))
         sys.exit(1)
 
 main()
