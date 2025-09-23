@@ -681,6 +681,164 @@ def create_merged_pdf():
                 os.remove(f)
 
 
+def create_merged_pdf_from_folder():
+    # This function is a modification of create_merged_pdf
+    temp_files = []
+    merged_writer = PdfWriter()
+    report_toc = None
+    attachments_data = []
+    
+    main_report_path = None
+    base_name_for_save = "merged"
+    has_report = False
+
+    # 1. Определяем основной отчет (PDF или Word)
+    if pdf_report_file_path[0]:
+        main_report_path = pdf_report_file_path[0]
+        text = pdf_report_entry.get().strip()
+        base_name_for_save = text or os.path.splitext(os.path.basename(main_report_path))[0]
+        temp_main_pdf = os.path.join(os.path.dirname(main_report_path), f"__temp_main_{os.path.basename(main_report_path)}")
+        try:
+            shutil.copy(main_report_path, temp_main_pdf)
+            temp_files.append(temp_main_pdf)
+            has_report = True
+            if extract_toc is not None:
+                try:
+                    report_toc = extract_toc(main_report_path)
+                except Exception as e:
+                    logging.warning("Не удалось извлечь TOC отчёта: %s", e)
+        except Exception as e:
+            status_var.set(f"❌ Ошибка при копировании PDF-отчета: {e}")
+            return
+    elif word_file_path[0]:
+        main_report_path = word_file_path[0]
+        base_name_for_save = word_entry.get().strip() or os.path.splitext(os.path.basename(main_report_path))[0]
+        word_pdf_path = os.path.join(os.path.dirname(main_report_path), f"{base_name_for_save}.pdf")
+        try:
+            convert(main_report_path, word_pdf_path)
+            if os.path.exists(word_pdf_path):
+                temp_files.append(word_pdf_path)
+            else:
+                status_var.set("❌ Ошибка: PDF из Word не был создан")
+                return
+        except Exception as e:
+            if "Word.Application.Quit" in str(e) and os.path.exists(word_pdf_path):
+                temp_files.append(word_pdf_path)
+            else:
+                status_var.set(f"❌ Ошибка при конвертации Word: {e}")
+                return
+    
+    try:
+        if report_toc is None and 'word_pdf_path' in locals() and os.path.exists(word_pdf_path) and extract_toc is not None:
+            report_toc = extract_toc(word_pdf_path)
+    except Exception as e:
+        logging.warning("Не удалось извлечь TOC из PDF (Word-конверсия, post): %s", e)
+
+    # --- NEW LOGIC STARTS HERE ---
+    # 2. Выбор папки с приложениями
+    folder_path = filedialog.askdirectory(title="Выберите папку с PDF-приложениями")
+    if not folder_path:
+        status_var.set("Операция отменена.")
+        return
+
+    try:
+        pdf_files = sorted([f for f in os.listdir(folder_path) if f.lower().endswith('.pdf')])
+    except Exception as e:
+        status_var.set(f"❌ Не удалось прочитать файлы из папки: {e}")
+        return
+
+    if not pdf_files:
+        status_var.set("⚠ В выбранной папке не найдено PDF-файлов.")
+        return
+    
+    status_var.set(f"Найдено {len(pdf_files)} PDF-файлов. Идет обработка...")
+    root.update_idletasks()
+
+    # 3. Обработка приложений из папки
+    pdf_temp_paths = []
+    for i, filename in enumerate(pdf_files):
+        path = os.path.join(folder_path, filename)
+        # Текст для штампа - имя файла без расширения
+        stamp_text = os.path.splitext(filename)[0]
+        temp_pdf = os.path.join(folder_path, f"__temp_att_{i+1}_{filename}")
+
+        try:
+            # Извлечение TOC из оригинального файла
+            toc_entry = None
+            if extract_toc is not None:
+                try:
+                    toc_entry = extract_toc(path)
+                except Exception as e:
+                    logging.warning("Не удалось извлечь TOC приложения (%s): %s", filename, e)
+            
+            if toc_entry:
+                attachments_data.append({"index": i + 1, "toc": toc_entry, "name": stamp_text})
+
+            # Создание временного PDF со штампом
+            reader = PdfReader(path)
+            writer = PdfWriter()
+            for page in reader.pages:
+                _merge_stamp(page, stamp_text, margin=12.0)
+                writer.add_page(page)
+            with open(temp_pdf, "wb") as f:
+                writer.write(f)
+            pdf_temp_paths.append(temp_pdf)
+
+        except Exception as e:
+            status_var.set(f"❌ Ошибка при обработке файла: {filename}\n{e}")
+            # Cleanup
+            for f in temp_files + pdf_temp_paths:
+                if os.path.exists(f): os.remove(f)
+            return
+    
+    temp_files.extend(pdf_temp_paths)
+    # --- NEW LOGIC ENDS ---
+
+    if not temp_files:
+        status_var.set("⚠ Не выбран ни один файл для объединения.")
+        return
+
+    # 4. Объединяем все PDF
+    try:
+        for pdf_path in temp_files:
+            reader = PdfReader(pdf_path)
+            for page in reader.pages:
+                merged_writer.add_page(page)
+        
+        merged_path = filedialog.asksaveasfilename(
+            defaultextension=".pdf",
+            filetypes=[("PDF files", "*.pdf")],
+            initialfile=f"{base_name_for_save}_All_from_folder.pdf", # Changed initial name
+            title="Сохранить объединённый PDF"
+        )
+        if merged_path:
+            with open(merged_path, "wb") as f:
+                merged_writer.write(f)
+            last_merged_pdf_path[0] = merged_path
+            status_var.set(f"✅ Общий PDF создан: {os.path.basename(merged_path)}")
+            create_pdf_link(merged_path)
+            # Применяем TOC
+            try:
+                if apply_toc is not None and compose_multi_attachment_toc is not None and SourceToc is not None:
+                    rep = report_toc if report_toc is not None else SourceToc(entries=[], pages=0)
+                    final_toc = compose_multi_attachment_toc(rep, attachments_data, report_title="Izvestaj", attachment_prefix="Prilog")
+                    apply_toc(merged_path, final_toc)
+                    logging.info("TOC применён: Izvestaj/Prilog, записей: %d", len(final_toc))
+                else:
+                    logging.info("Пропуск применения TOC: модуль bookmarks/PyMuPDF недоступен")
+            except Exception as e:
+                logging.warning("Не удалось применить TOC к итоговому PDF: %s", e)
+        else:
+            status_var.set("Операция отменена.")
+    except Exception as e:
+        status_var.set(f"❌ Ошибка при объединении: {e}")
+    finally:
+        # 5. Удаляем все временные файлы
+        for f in temp_files:
+            if os.path.exists(f):
+                os.remove(f)
+
+
 def create_pdf_link(pdf_path):
     """Создает кликабельную ссылку на созданный PDF и ссылку на папку"""
     # Удаляем старые ссылки если они существуют
@@ -852,17 +1010,28 @@ tk.Button(buttons_frame, text="🔄 Сброс/Вернуть по умолча�
 merge_btn = tk.Button(buttons_frame, 
                      text="📚 Создать общий PDF",
                      command=create_merged_pdf,
-                     width=30,           # из bottom_btn_style
-                     relief="flat",      # из bottom_btn_style
-                     bg="#4CAF50",       # новый цвет фона
-                     fg="white",         # цвет текста
+                     width=30,
+                     relief="flat",
+                     bg="#4CAF50",
+                     fg="white",
                      activebackground="#45a049")
 merge_btn.pack()
+
+folder_merge_btn = tk.Button(buttons_frame,
+                             text="🗂️ Создать PDF из папки",
+                             command=create_merged_pdf_from_folder,
+                             width=30,
+                             relief="flat",
+                             bg="#FF9800",
+                             fg="white",
+                             activebackground="#FB8C00")
+folder_merge_btn.pack(pady=(5,0))
 
 # Добавляем info_text после кнопок
 info_text = (
     "🔄 Вернуть по умолчанию – сбрасывает названия и очищает отмеченные файлы.\n"
-    "📚 Создать общий PDF – создает общий PDF из word файла и Приложений.\n"
+    "📚 Создать общий PDF – создает общий PDF из отчета и 6 слотов.\n"
+    "🗂️ Создать PDF из папки – создает общий PDF из отчета и всех PDF в папке."
 )
 info_label = tk.Label(bottom_btn_frame, text=info_text, justify='left', anchor='nw', 
                      bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
