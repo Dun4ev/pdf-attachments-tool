@@ -1018,18 +1018,21 @@ note_label.pack(pady=(10, 0))
 # --- КОНЕЦ ВОССТАНОВЛЕННОГО БЛОКА ---
 
 # Кнопка для ручного режима (под левой колонкой)
-merge_btn = tk.Button(manual_apps_frame, 
+manual_merge_action_frame = tk.Frame(manual_apps_frame, bg=BG_COLOR)
+manual_merge_action_frame.pack(pady=10)
+
+merge_btn = tk.Button(manual_merge_action_frame, 
                      text="📚 Создать общий PDF (из ручных слотов)",
                      command=create_merged_pdf,
                      relief="flat",
                      bg="#4CAF50",
                      fg="white",
                      activebackground="#45a049")
-merge_btn.pack(pady=10)
+merge_btn.pack(side='left')
 
-note_merge_btn = tk.Label(manual_apps_frame, text="Создает общий PDF из отчета (Блок 1) и 6 слотов выше.", 
+note_merge_btn = tk.Label(manual_merge_action_frame, text="Создает общий PDF из отчета (Блок 1) и 6 слотов выше.", 
                      bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
-note_merge_btn.pack(pady=(0, 5))
+note_merge_btn.pack(side='left', padx=(10, 0))
 
 
 # --- Блок 3: Приложения из папки (Автоматический режим) ---
@@ -1046,18 +1049,21 @@ folder_for_merge_label = tk.Label(folder_select_frame, text="Папка не в�
 folder_for_merge_label.pack(side='left')
 
 # Кнопка для режима из папки
-folder_merge_btn = tk.Button(folder_apps_frame,
+folder_merge_action_frame = tk.Frame(folder_apps_frame, bg=BG_COLOR)
+folder_merge_action_frame.pack(pady=10)
+
+folder_merge_btn = tk.Button(folder_merge_action_frame,
                              text="🗂️ Создать PDF из папки",
                              command=create_merged_pdf_from_folder,
                              relief="flat",
                              bg="#FF9800",
                              fg="white",
                              activebackground="#FB8C00")
-folder_merge_btn.pack(pady=10)
+folder_merge_btn.pack(side='left')
 
-note_folder_merge_btn = tk.Label(folder_apps_frame, text="Создает общий PDF из отчета (Блок 1) и Папки (Блок 3).",
+note_folder_merge_btn = tk.Label(folder_merge_action_frame, text="Создает общий PDF из отчета (Блок 1) и Папки (Блок 3).",
                                 bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
-note_folder_merge_btn.pack(pady=(0, 5))
+note_folder_merge_btn.pack(side='left', padx=(10, 0))
 
 
 # --- Блок 4: Сброс и Статус ---
@@ -1066,9 +1072,16 @@ separator = tk.Frame(root, height=2, bg="#e0e0e0")
 separator.pack(fill='x', padx=20, pady=(10, 5))
 
 # Кнопка сброса
-reset_btn = tk.Button(root, text="🔄 Сброс/Вернуть по умолчанию", 
+reset_action_frame = tk.Frame(root, bg=BG_COLOR)
+reset_action_frame.pack(pady=10)
+
+reset_btn = tk.Button(reset_action_frame, text="🔄 Сброс/Вернуть по умолчанию", 
          command=reset_fields, bg=BTN_COLOR, relief="flat")
-reset_btn.pack(pady=10)
+reset_btn.pack(side='left')
+
+note_reset_btn = tk.Label(reset_action_frame, text="Сбрасывает все поля и очищает все выбранные файлы.",
+                        bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
+note_reset_btn.pack(side='left', padx=(10, 0))
 
 
 status_var = tk.StringVar()
