@@ -1055,6 +1055,10 @@ folder_merge_btn = tk.Button(folder_apps_frame,
                              activebackground="#FB8C00")
 folder_merge_btn.pack(pady=10)
 
+note_folder_merge_btn = tk.Label(folder_apps_frame, text="Создает общий PDF из отчета (Блок 1) и Папки (Блок 3).",
+                                bg=BG_COLOR, fg="#444", font=("Segoe UI", 8))
+note_folder_merge_btn.pack(pady=(0, 5))
+
 
 # --- Блок 4: Сброс и Статус ---
 # Разделительная линия
