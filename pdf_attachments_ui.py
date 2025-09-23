@@ -100,7 +100,7 @@ ENTRY_FG = "#333333"
 FONT = ("Segoe UI", 10)
 
 root = tk.Tk()
-root.title("PDF Приложения v5.0")
+root.title("PDF Приложения v5.1")
 # Установка иконки
 try:
     # Иконка теперь ищется в папке assets
@@ -183,7 +183,7 @@ def _create_stamp_page(
     stamp_width: float = 240,
     stamp_height: float = 24,
     font_name: str = None,
-    font_size: int = 11,
+    font_size: int = 10,
     draw_bg: bool = True,
     bg_padding: int = 3,
 ):
@@ -324,7 +324,7 @@ def _merge_stamp(page, text: str, margin: float = 12.0):
     # 1. Исходные параметры для штампа и шрифта
     initial_sw = 240.0
     initial_sh = 24.0
-    initial_font_size = 11.0 # Желаемый размер шрифта
+    initial_font_size = 10.0 # Желаемый размер шрифта
     
     # 2. Получаем размеры страницы
     box = getattr(page, "cropbox", None) or page.mediabox
