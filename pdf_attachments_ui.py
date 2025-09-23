@@ -536,7 +536,7 @@ def create_merged_pdf():
     merged_writer = PdfWriter()
     # Данные для сборки TOC (если доступен модуль bookmarks/PyMuPDF)
     report_toc = None
-    attachments_toc = []
+    attachments_data = []  # <-- ИЗМЕНЕНИЕ: Единый список для данных приложений
     
     main_report_path = None
     base_name_for_save = "merged"
@@ -594,7 +594,6 @@ def create_merged_pdf():
         logging.warning("Не удалось извлечь TOC из PDF (Word-конверсия, post): %s", e)
 
     pdf_temp_paths = []
-    attachments_names = []
     for i, path in enumerate(file_paths):
         if path:
             text = entries[i].get().strip()
@@ -605,14 +604,19 @@ def create_merged_pdf():
                     base = os.path.splitext(os.path.basename(path))[0]
                 except Exception:
                     base = os.path.basename(path)
-                attachments_names.append(base)
+                
                 # Извлечём TOC исходного файла до штамповки (если доступно)
+                toc_entry = None
                 if extract_toc is not None:
                     try:
-                        attachments_toc.append(extract_toc(path))
+                        toc_entry = extract_toc(path)
                     except Exception as e:
                         logging.warning("Не удалось извлечь TOC приложения (%s): %s", os.path.basename(path), e)
-                        attachments_toc.append(None)
+                
+                # <-- ИЗМЕНЕНИЕ: Сохраняем индекс, TOC и имя вместе
+                if toc_entry:
+                    attachments_data.append({"index": i + 1, "toc": toc_entry, "name": base})
+
                 reader = PdfReader(path)
                 writer = PdfWriter()
                 for page in reader.pages:
@@ -652,15 +656,14 @@ def create_merged_pdf():
             last_merged_pdf_path[0] = merged_path
             status_var.set(f"✅ Общий PDF создан: {os.path.basename(merged_path)}")
             create_pdf_link(merged_path)
-            # Применяем двухуровневый TOC: Izvestaj / Prilog
+            # Применяем TOC
             try:
-                if apply_toc is not None and compose_two_level_toc is not None and SourceToc is not None:
+                if apply_toc is not None and compose_multi_attachment_toc is not None and SourceToc is not None:
                     rep = report_toc if report_toc is not None else SourceToc(entries=[], pages=0)
-                    # Отфильтруем пустые/ошибочные элементы
-                    pair = [(a, n) for a, n in zip(attachments_toc, attachments_names) if a is not None]
-                    atts = [a for a, _n in pair]
-                    att_names = [_n for _a, _n in pair]
-                    final_toc = compose_multi_attachment_toc(rep, atts, report_title="Izvestaj", attachment_prefix="Prilog", attachment_names=att_names)
+                    
+                    # <-- ИЗМЕНЕНИЕ: Передаем новый структурированный список
+                    final_toc = compose_multi_attachment_toc(rep, attachments_data, report_title="Izvestaj", attachment_prefix="Prilog")
+                    
                     apply_toc(merged_path, final_toc)
                     logging.info("TOC применён: Izvestaj/Prilog, записей: %d", len(final_toc))
                 else:
