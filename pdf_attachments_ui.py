@@ -496,6 +496,16 @@ def reset_fields():
         root.pdf_link_label.destroy()
     
     clear_folder_for_merge() # <-- СБРОС ВЫБОРА ПАПКИ
+
+    # --- ИЗМЕНЕНИЕ: Добавлен сброс полей нумерации для Блока 3 ---
+    if 'start_number_entry' in globals():
+        start_number_entry.delete(0, tk.END)
+        start_number_entry.insert(0, "1")
+    if 'prefix_number_entry' in globals():
+        prefix_number_entry.delete(0, tk.END)
+        prefix_number_entry.insert(0, "Prilog 7.")
+    # --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
     status_var.set("🔄 Поля сброшены по умолчанию.")
 
 # === Word & PDF Отчеты ===
@@ -800,7 +810,7 @@ def create_merged_pdf_from_folder():
         
         # --- ИЗМЕНЕНИЕ: Ограничение длины имени файла для штампа ---
         # Вы можете изменить значение 30, чтобы подобрать нужную длину.
-        FILENAME_CHAR_LIMIT = 35
+        FILENAME_CHAR_LIMIT = 30
         if len(bookmark_name) > FILENAME_CHAR_LIMIT:
             truncated_name = bookmark_name[:FILENAME_CHAR_LIMIT] + "..."
         else:
@@ -1085,7 +1095,11 @@ start_num_frame.pack(side='right', padx=(20, 0))
 
 tk.Label(start_num_frame, text="Начать нумерацию с:", bg=BG_COLOR).pack(side='left')
 start_number_entry = tk.Spinbox(start_num_frame, from_=1, to=999, width=4, bg=ENTRY_BG, fg=ENTRY_FG, relief="solid", bd=1)
+# --- ИСПРАВЛЕНИЕ: Сначала очищаем поле, потом вставляем значение по умолчанию ---
+# Это предотвращает дублирование "1", если виджет инициализируется со значением из from_
+start_number_entry.delete(0, tk.END)
 start_number_entry.insert(0, "1")
+# --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 start_number_entry.pack(side='left', padx=5)
 # --- Конец нового виджета ---
 
